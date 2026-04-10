@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project specific
+/cotizacctv-web/.next/
+/cotizacctv-web/out/
+/cotizacctv-api/storage/*.key
+/cotizacctv-api/storage/framework/cache/data/*
+/cotizacctv-api/storage/framework/views/*.php
+/cotizacctv-api/storage/framework/sessions/*
+/cotizacctv-api/storage/logs/*.log
+/cotizacctv-api/public/storage
+/cotizacctv-api/public/build
+/cotizacctv-api/public/hot
+
+# Other projects or backups
+/camquote-api/
+/cotizacctv-web-backup/

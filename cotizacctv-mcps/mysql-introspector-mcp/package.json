@@ -1,0 +1,22 @@
+{
+  "name": "mysql-introspector-mcp",
+  "version": "1.0.0",
+  "description": "MySQL Database Introspector MCP Server",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.9.7"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.7",
+    "typescript": "^5.4.5",
+    "ts-node": "^10.9.2"
+  }
+}
