@@ -44,7 +44,7 @@ class Product extends Model
     public function suppliers()
     {
         return $this->belongsToMany(Supplier::class, 'supplier_product')
-                    ->withPivot('cost', 'updated_at')
+                    ->withPivot('cost', 'is_default', 'updated_at')
                     ->orderByPivot('updated_at', 'desc');
     }
 

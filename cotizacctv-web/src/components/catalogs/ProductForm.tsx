@@ -97,10 +97,16 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, update } = useFieldArray({
     control,
     name: "suppliers",
   });
+
+  const setPrimarySupplier = (selectedIndex: number) => {
+    fields.forEach((field, index) => {
+      update(index, { ...field, is_default: index === selectedIndex });
+    });
+  };
 
   const handleCategoryCreated = (newCategory: Category) => {
     setCategories(prev => [...prev, newCategory]);
@@ -264,7 +270,9 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             >
               <SelectTrigger className="w-full">
                 <Tag className="mr-2 h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar categoría"} />
+                <SelectValue placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar categoría"}>
+                  {field.value && categories.find(c => c.id.toString() === field.value.toString())?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {categories.map((category) => (
@@ -297,7 +305,9 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
             >
               <SelectTrigger className="w-full">
                 <ShieldCheck className="mr-2 h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar marca (Opcional)"} />
+                <SelectValue placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar marca (Opcional)"}>
+                  {field.value && field.value !== "none" && brands.find(b => b.id.toString() === field.value.toString())?.name}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">Sin marca</SelectItem>
@@ -348,7 +358,9 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                   >
                     <SelectTrigger className="w-full">
                       <Truck className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <SelectValue placeholder="Proveedor" />
+                      <SelectValue placeholder="Proveedor">
+                        {field.value && suppliers.find(s => s.id.toString() === field.value.toString())?.name}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       {suppliers.map((supplier) => (
@@ -384,20 +396,12 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className={`h-10 w-full ${field.value ? 'text-yellow-500 hover:text-yellow-600' : 'text-muted-foreground hover:text-yellow-500'}`}
-                    onClick={() => {
-                      // Set all to false
-                      const currentSuppliers = watch("suppliers");
-                      currentSuppliers.forEach((_: any, i: number) => {
-                        setValue(`suppliers.${i}.is_default`, false);
-                      });
-                      // Set current to true
-                      setValue(`suppliers.${index}.is_default`, true);
-                    }}
+                    className="h-10 w-full"
+                    onClick={() => setPrimarySupplier(index)}
                     title={field.value ? "Proveedor Principal" : "Marcar como Principal"}
                     disabled={isSubmitting}
                   >
-                    <Star className={`h-5 w-5 ${field.value ? 'fill-current' : ''}`} />
+                    <Star className={`h-5 w-5 ${field.value ? 'fill-yellow-500 text-yellow-500' : 'text-gray-400'}`} />
                   </Button>
                 )}
               />
@@ -414,9 +418,12 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                   remove(index);
                   if (wasDefault && currentSuppliers.length > 1) {
                     // Set the new first item as default if we deleted the default one
-                    const nextIndex = index === 0 ? 0 : index - 1;
-                    // Note: After remove, we need to wait or use index relative to NEW array
-                    setTimeout(() => setValue(`suppliers.0.is_default`, true), 0);
+                    setTimeout(() => {
+                      const updatedSuppliers = watch("suppliers");
+                      if (updatedSuppliers.length > 0) {
+                        setPrimarySupplier(0);
+                      }
+                    }, 0);
                   }
                 }}
                 disabled={isSubmitting || fields.length === 1}
