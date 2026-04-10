@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Cotización #{{ $quote->id }}</title>
+    <title>Cotización #{{ $quote->id }} | {{ $settings['company_name'] ?? 'CotizaCCTV' }}</title>
     <style>
         body {
             font-family: 'Helvetica', 'Arial', sans-serif;
@@ -122,7 +122,7 @@
                         @if(!empty($settings['company_logo_base64']) && str_starts_with($settings['company_logo_base64'], 'data:image'))
                             <img src="{{ $settings['company_logo_base64'] }}" style="max-height: 60px;">
                         @else
-                            <h1 class="company-name">CotizaCCTV</h1>
+                            <h1 class="company-name">{{ $settings['company_name'] ?? 'CotizaCCTV' }}</h1>
                         @endif
                     </td>
                     <td class="quote-info">
@@ -211,7 +211,7 @@
         </div>
 
         <div class="footer">
-            <p>Gracias por confiar en CotizaCCTV. Esta cotización está sujeta a cambios tras una inspección física en el sitio.</p>
+            <p>{{ $settings['quote_footer_text'] ?? 'Gracias por su preferencia. Cotización sujeta a inspección física.' }}</p>
             <p>Generado automáticamente el {{ now()->format('d/m/Y H:i') }}</p>
         </div>
     </div>

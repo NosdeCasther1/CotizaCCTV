@@ -6,11 +6,15 @@ import api from '@/lib/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Settings, Save, Palette, Image as ImageIcon } from 'lucide-react';
+import { Settings, Save, Palette, Image as ImageIcon, Building2, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface SettingsFormValues {
   company_logo_base64: string;
   primary_color: string;
+  company_name: string;
+  quote_footer_text: string;
 }
 
 export default function SettingsPage() {
@@ -20,7 +24,9 @@ export default function SettingsPage() {
   const { register, handleSubmit, setValue, watch, reset } = useForm<SettingsFormValues>({
     defaultValues: {
       company_logo_base64: '',
-      primary_color: '#1a3a5a'
+      primary_color: '#1a3a5a',
+      company_name: '',
+      quote_footer_text: ''
     }
   });
 
@@ -32,7 +38,9 @@ export default function SettingsPage() {
         const { data } = await api.get('/settings');
         reset({
           company_logo_base64: data.company_logo_base64 || '',
-          primary_color: data.primary_color || '#1a3a5a'
+          primary_color: data.primary_color || '#1a3a5a',
+          company_name: data.company_name || '',
+          quote_footer_text: data.quote_footer_text || ''
         });
       } catch (error) {
         toast.error('Error al cargar la configuración');
@@ -103,6 +111,36 @@ export default function SettingsPage() {
               {...register('primary_color')} 
             />
             <span className="font-mono bg-muted px-2 py-1 rounded border">{watch('primary_color')}</span>
+          </div>
+        </div>
+
+        {/* Información de la Empresa */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 font-medium text-lg">
+            <Building2 className="w-5 h-5" />
+            <h3>Información de la Empresa</h3>
+          </div>
+          
+          <div className="grid gap-2">
+            <Label htmlFor="company_name">Nombre de la Empresa</Label>
+            <Input 
+              id="company_name"
+              placeholder="Ej. Pro Safe, Cámaras de Seguridad"
+              {...register('company_name')}
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <Label htmlFor="quote_footer_text">Términos y Condiciones / Pie de Página</Label>
+            <Textarea 
+              id="quote_footer_text"
+              placeholder="Ej. Gracias por confiar en nosotros. Cotización sujeta a inspección física..."
+              className="min-h-[100px]"
+              {...register('quote_footer_text')}
+            />
+            <p className="text-xs text-muted-foreground">
+              Este texto aparecerá al final de todas tus cotizaciones en PDF.
+            </p>
           </div>
         </div>
 

@@ -22,9 +22,14 @@ class SettingController extends Controller
      */
     public function update(Request $request): JsonResponse
     {
-        $settings = $request->all();
+        $validated = $request->validate([
+            'primary_color' => 'nullable|string',
+            'company_logo_base64' => 'nullable|string',
+            'company_name' => 'nullable|string|max:255',
+            'quote_footer_text' => 'nullable|string',
+        ]);
         
-        foreach ($settings as $key => $value) {
+        foreach ($validated as $key => $value) {
             SystemSetting::updateOrCreate(
                 ['key' => $key],
                 ['value' => $value, 'type' => 'string']
