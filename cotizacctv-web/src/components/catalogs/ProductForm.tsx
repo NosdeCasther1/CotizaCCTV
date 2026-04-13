@@ -4,18 +4,25 @@ import { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Trash2, Loader2, Package, Hash, DollarSign, Tag, Truck, Percent, Star, AlignLeft, ShieldCheck } from "lucide-react";
+import { Plus, Trash2, Loader2, Package, Hash, DollarSign, Tag, Truck, Percent, Star, AlignLeft, ShieldCheck, Check, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DialogFooter } from "@/components/ui/dialog";
 import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
-} from "@/components/ui/select";
+  Command, 
+  CommandEmpty, 
+  CommandGroup, 
+  CommandInput, 
+  CommandItem, 
+  CommandList 
+} from "@/components/ui/command";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 import { createProduct, updateProduct } from "@/services/productService";
 import { getCategories, Category } from "@/services/categoryService";
@@ -26,6 +33,96 @@ import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { QuickCreateCategory } from "@/components/modals/QuickCreateCategory";
 import { QuickCreateBrand } from "@/components/modals/QuickCreateBrand";
 import { QuickCreateSupplier } from "@/components/modals/QuickCreateSupplier";
+
+interface ComboboxFieldProps {
+  value: string;
+  onChange: (value: string) => void;
+  options: { id: string | number; name: string }[];
+  placeholder?: string;
+  searchPlaceholder?: string;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  emptyText?: string;
+  allowClear?: boolean;
+}
+
+function ComboboxField({
+  value,
+  onChange,
+  options,
+  placeholder = "Seleccionar",
+  searchPlaceholder = "Buscar...",
+  icon,
+  disabled,
+  emptyText = "No se encontraron resultados.",
+  allowClear = false
+}: ComboboxFieldProps) {
+  const [open, setOpen] = useState(false);
+
+  const selectedOption = options.find(opt => opt.id.toString() === value?.toString());
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          disabled={disabled}
+          className="w-full justify-between font-normal text-left px-3 bg-background"
+        >
+          <div className="flex items-center gap-2 truncate whitespace-nowrap overflow-hidden">
+            {icon}
+            <span className="truncate">
+              {selectedOption ? selectedOption.name : placeholder}
+            </span>
+          </div>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+        <Command>
+          <CommandInput placeholder={searchPlaceholder} />
+          <CommandList>
+            <CommandEmpty>{emptyText}</CommandEmpty>
+            <CommandGroup>
+              {allowClear && (
+                <CommandItem
+                  value="none"
+                  onSelect={() => {
+                    onChange("");
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", !value || value === "none" ? "opacity-100" : "opacity-0")} />
+                  Sin selección
+                </CommandItem>
+              )}
+              {options.map((option) => (
+                <CommandItem
+                  key={option.id}
+                  value={option.name}
+                  onSelect={() => {
+                    onChange(option.id.toString());
+                    setOpen(false);
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      value?.toString() === option.id.toString() ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 const productSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -263,25 +360,15 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           name="category_id"
           control={control}
           render={({ field }) => (
-            <Select 
-              onValueChange={field.onChange} 
-              value={field.value?.toString()}
+            <ComboboxField
+              value={field.value?.toString() || ""}
+              onChange={field.onChange}
+              options={categories}
+              placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar categoría"}
+              searchPlaceholder="Buscar categoría..."
+              icon={<Tag className="h-4 w-4 text-muted-foreground" />}
               disabled={isSubmitting || isLoadingRelations}
-            >
-              <SelectTrigger className="w-full">
-                <Tag className="mr-2 h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar categoría"}>
-                  {field.value && categories.find(c => c.id.toString() === field.value.toString())?.name}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id.toString()}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           )}
         />
         {errors.category_id && (
@@ -298,26 +385,16 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
           name="brand_id"
           control={control}
           render={({ field }) => (
-            <Select 
-              onValueChange={field.onChange} 
-              value={field.value?.toString()}
+            <ComboboxField
+              value={field.value?.toString() || ""}
+              onChange={field.onChange}
+              options={brands}
+              placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar marca (Opcional)"}
+              searchPlaceholder="Buscar marca..."
+              icon={<ShieldCheck className="h-4 w-4 text-muted-foreground" />}
               disabled={isSubmitting || isLoadingRelations}
-            >
-              <SelectTrigger className="w-full">
-                <ShieldCheck className="mr-2 h-4 w-4 text-muted-foreground" />
-                <SelectValue placeholder={isLoadingRelations ? "Cargando..." : "Seleccionar marca (Opcional)"}>
-                  {field.value && field.value !== "none" && brands.find(b => b.id.toString() === field.value.toString())?.name}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Sin marca</SelectItem>
-                {brands.map((brand) => (
-                  <SelectItem key={brand.id} value={brand.id.toString()}>
-                    {brand.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              allowClear
+            />
           )}
         />
         {errors.brand_id && (
@@ -351,25 +428,15 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
                 name={`suppliers.${index}.supplier_id`}
                 control={control}
                 render={({ field }) => (
-                  <Select 
-                    onValueChange={field.onChange} 
-                    value={field.value?.toString()}
+                  <ComboboxField
+                    value={field.value?.toString() || ""}
+                    onChange={field.onChange}
+                    options={suppliers}
+                    placeholder="Proveedor"
+                    searchPlaceholder="Buscar proveedor..."
+                    icon={<Truck className="h-4 w-4 text-muted-foreground" />}
                     disabled={isSubmitting || isLoadingRelations}
-                  >
-                    <SelectTrigger className="w-full">
-                      <Truck className="mr-2 h-4 w-4 text-muted-foreground" />
-                      <SelectValue placeholder="Proveedor">
-                        {field.value && suppliers.find(s => s.id.toString() === field.value.toString())?.name}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {suppliers.map((supplier) => (
-                        <SelectItem key={supplier.id} value={supplier.id.toString()}>
-                          {supplier.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  />
                 )}
               />
             </div>

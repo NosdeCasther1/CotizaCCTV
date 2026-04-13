@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -130,50 +131,53 @@ export default function SuppliersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">ID</TableHead>
               <TableHead>Nombre</TableHead>
-              <TableHead>Teléfono</TableHead>
-              <TableHead>Email</TableHead>
+              <TableHead>Contacto</TableHead>
+              <TableHead>Inventario</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   Cargando proveedores...
                 </TableCell>
               </TableRow>
             ) : filteredSuppliers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="h-24 text-center">
+                <TableCell colSpan={4} className="h-24 text-center">
                   No se encontraron proveedores.
                 </TableCell>
               </TableRow>
             ) : (
               filteredSuppliers.map((supplier) => (
                 <TableRow key={supplier.id}>
-                  <TableCell className="font-medium">{supplier.id}</TableCell>
-                  <TableCell className="font-semibold">{supplier.name}</TableCell>
+                  <TableCell className="font-medium">{supplier.name}</TableCell>
                   <TableCell>
-                    {supplier.phone ? (
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-3 w-3 text-muted-foreground" />
-                        {supplier.phone}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs italic">N/A</span>
-                    )}
+                    <div className="flex flex-col gap-1">
+                      {supplier.phone ? (
+                        <span className="flex items-center gap-1.5 text-sm">
+                          <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          {supplier.phone}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs italic">Sin teléfono</span>
+                      )}
+                      {supplier.email ? (
+                        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Mail className="h-3 w-3 flex-shrink-0" />
+                          {supplier.email}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground text-xs italic">Sin email</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
-                    {supplier.email ? (
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-3 w-3 text-muted-foreground" />
-                        {supplier.email}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs italic">N/A</span>
-                    )}
+                    <Badge variant="secondary">
+                      {supplier.products_count ?? 0} productos
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <AlertDialog>

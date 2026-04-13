@@ -71,6 +71,7 @@ export function ProductCombobox({ value, onChange }: ProductComboboxProps) {
                 <CommandItem
                   key={product.id}
                   value={`${product.sku} ${product.name}`}
+                  keywords={[product.sku ?? "", product.name]}
                   onSelect={() => {
                     onChange(product.id || 0); // Ensure number
                     setOpen(false);

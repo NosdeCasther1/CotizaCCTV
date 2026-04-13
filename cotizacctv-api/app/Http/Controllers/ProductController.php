@@ -5,16 +5,27 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
 class ProductController extends Controller
 {
     /**
-     * Retorna el catálogo completo con sus relaciones.
+     * Retorna el catálogo completo con sus relaciones, opcionalmente filtrado.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $products = Product::with(['category', 'suppliers'])->get();
+        $query = Product::with(['category', 'suppliers']);
+
+        if ($request->has('search') && $request->filled('search')) {
+            $searchTerm = $request->query('search');
+            $query->where(function($q) use ($searchTerm) {
+                $q->where('name', 'LIKE', "%{$searchTerm}%")
+                  ->orWhere('sku', 'LIKE', "%{$searchTerm}%");
+            });
+        }
+
+        $products = $query->get();
         
         return response()->json([
             'data' => $products

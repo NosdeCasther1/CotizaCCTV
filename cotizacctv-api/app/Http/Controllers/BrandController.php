@@ -15,7 +15,7 @@ class BrandController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            'data' => Brand::all()
+            'data' => Brand::withCount('products')->orderBy('name', 'asc')->get()
         ]);
     }
 

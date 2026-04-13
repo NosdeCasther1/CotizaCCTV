@@ -5,6 +5,7 @@ export interface Supplier {
   name: string;
   email: string | null;
   phone: string | null;
+  products_count?: number;
 }
 
 export type SupplierFormValues = Omit<Supplier, 'id'>;

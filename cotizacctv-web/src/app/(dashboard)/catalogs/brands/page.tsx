@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -143,36 +144,38 @@ export default function BrandsPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-[80px]">ID</TableHead>
               <TableHead>Nombre</TableHead>
-              <TableHead>Slug</TableHead>
+              <TableHead>Inventario</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   Cargando marcas...
                 </TableCell>
               </TableRow>
             ) : filteredBrands.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="h-24 text-center">
+                <TableCell colSpan={3} className="h-24 text-center">
                   No se encontraron marcas.
                 </TableCell>
               </TableRow>
             ) : (
               filteredBrands.map((brand) => (
                 <TableRow key={brand.id}>
-                  <TableCell className="font-medium">{brand.id}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <ShieldCheck className="h-4 w-4 text-primary" />
-                      <span className="font-semibold">{brand.name}</span>
+                      <span className="font-medium">{brand.name}</span>
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">{brand.slug}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">
+                      {brand.products_count ?? 0} productos
+                    </Badge>
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button

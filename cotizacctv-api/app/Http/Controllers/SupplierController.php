@@ -15,7 +15,7 @@ class SupplierController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            'data' => Supplier::all()
+            'data' => Supplier::withCount('products')->orderBy('name', 'asc')->get()
         ]);
     }
 

@@ -4,6 +4,7 @@ export interface Category {
   id: number;
   name: string;
   slug: string;
+  products_count?: number;
 }
 
 export type CategoryFormValues = Omit<Category, 'id' | 'slug'>;

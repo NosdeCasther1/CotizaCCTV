@@ -3,6 +3,7 @@ export interface Supplier {
   name: string;
   phone: string | null;
   email: string | null;
+  products_count?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -12,6 +13,7 @@ export interface Category {
   name: string;
   slug: string;
   margin_percentage: number | null;
+  products_count?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -20,6 +22,7 @@ export interface Brand {
   id: number;
   name: string;
   slug: string;
+  products_count?: number;
   created_at?: string;
   updated_at?: string;
 }

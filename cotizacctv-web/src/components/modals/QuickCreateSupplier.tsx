@@ -52,14 +52,14 @@ export function QuickCreateSupplier({ onSuccess, trigger }: QuickCreateSupplierP
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
+      <DialogTrigger
+        render={trigger || (
           <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs">
             <Plus className="mr-1 h-3 w-3" />
             Nueva
           </Button>
         )}
-      </DialogTrigger>
+      />
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
