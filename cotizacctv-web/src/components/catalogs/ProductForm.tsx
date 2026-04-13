@@ -174,6 +174,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
     control,
     setValue,
     watch,
+    setError,
     formState: { errors },
   } = useForm<any>({
     resolver: zodResolver(productSchema),
@@ -269,8 +270,22 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         await createProduct(payload as any);
       }
       onSuccess();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al guardar producto:", error);
+      
+      // Manejo de errores de validación (422) de Laravel
+      if (error.response?.status === 422 && error.response.data?.errors) {
+        const validationErrors = error.response.data.errors;
+        
+        if (validationErrors.sku) {
+          setError("sku", { 
+            type: "manual", 
+            message: "Este SKU ya está registrado en otro producto activo." 
+          });
+        }
+        
+        // Se podrían manejar otros errores aquí si fuera necesario
+      }
     } finally {
       setIsSubmitting(false);
     }

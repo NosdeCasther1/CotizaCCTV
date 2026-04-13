@@ -15,7 +15,7 @@ class ProductController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = Product::with(['category', 'suppliers']);
+        $query = Product::with(['category', 'suppliers'])->orderBy('name', 'asc');
 
         if ($request->has('search') && $request->filled('search')) {
             $searchTerm = $request->query('search');

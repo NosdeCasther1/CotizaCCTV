@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateProductRequest extends FormRequest
 {
@@ -27,7 +28,13 @@ class UpdateProductRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'sku' => 'required|string|unique:products,sku,' . $productId,
+            'sku' => [
+                'required',
+                'string',
+                Rule::unique('products', 'sku')
+                    ->ignore($productId)
+                    ->whereNull('deleted_at')
+            ],
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'margin_percentage' => 'nullable|numeric|min:0|max:100',

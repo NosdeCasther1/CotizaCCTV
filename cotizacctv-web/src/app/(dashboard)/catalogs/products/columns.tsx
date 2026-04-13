@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Product } from "@/types"
 import { Button } from "@/components/ui/button"
-import { Edit2, Trash } from "lucide-react"
+import { Edit2, Trash, ArrowUpDown } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,18 @@ export const getColumns = (
 ): ColumnDef<Product>[] => [
   {
     accessorKey: "name",
-    header: "Producto",
+    header: ({ column }) => {
+      return (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          className="-ml-4"
+        >
+          Producto
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      )
+    },
     cell: ({ row }) => {
       const product = row.original
       return (
@@ -101,9 +112,21 @@ export const getColumns = (
     },
   },
   {
-    id: "pricing",
-    header: () => <div className="text-right">Precio Venta (y Costo)</div>,
-    accessorFn: (row) => row.calculated_sale_price,
+    accessorKey: "calculated_sale_price",
+    header: ({ column }) => {
+      return (
+        <div className="text-right">
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+            className="-mr-4"
+          >
+            Precio Venta
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      )
+    },
     cell: ({ row }) => {
       const product = row.original
       const star = product.suppliers?.find(s => s.pivot?.is_default) ?? product.suppliers?.[0]

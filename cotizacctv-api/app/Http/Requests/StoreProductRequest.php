@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreProductRequest extends FormRequest
 {
@@ -25,7 +26,11 @@ class StoreProductRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'sku' => 'required|string|unique:products,sku',
+            'sku' => [
+                'required',
+                'string',
+                Rule::unique('products', 'sku')->whereNull('deleted_at')
+            ],
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
             'margin_percentage' => 'nullable|numeric|min:0|max:100',
