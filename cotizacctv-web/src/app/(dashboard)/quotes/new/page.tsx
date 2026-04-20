@@ -383,6 +383,15 @@ export default function NewQuotePage() {
 
             {/* ── DENSE TABLE ── */}
             {fields.length > 0 ? (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext
+                  items={fields.map((f) => f.id)}
+                  strategy={verticalListSortingStrategy}
+                >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -406,15 +415,6 @@ export default function NewQuotePage() {
                       <th className="w-10" />
                     </tr>
                   </thead>
-                  <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                  >
-                    <SortableContext
-                      items={fields.map((f) => f.id)}
-                      strategy={verticalListSortingStrategy}
-                    >
                       <tbody className="divide-y divide-slate-50">
                         {fields.map((field, index) => {
                           const currentItem = watchedItems[index];
@@ -516,11 +516,9 @@ export default function NewQuotePage() {
                           );
                         })}
                       </tbody>
-                    </SortableContext>
-                  </DndContext>
 
-                  {/* Footer total */}
-                  <tfoot>
+                   {/* Footer total */}
+                   <tfoot>
                     <tr className="border-t-2 border-slate-100 bg-slate-50/60">
                       <td colSpan={4} className="px-4 py-2.5 text-right">
                         <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -537,6 +535,8 @@ export default function NewQuotePage() {
                   </tfoot>
                 </table>
               </div>
+              </SortableContext>
+              </DndContext>
             ) : (
               /* Empty state */
               <div className="flex flex-col items-center justify-center py-14 gap-3 text-center px-6">
