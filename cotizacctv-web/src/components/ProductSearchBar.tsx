@@ -192,9 +192,16 @@ export function ProductSearchBar({
                     <span className="text-[10px] font-mono font-bold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
                       {product.sku}
                     </span>
-                    <span className="text-sm text-slate-800 truncate font-medium">
-                      {product.name}
-                    </span>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-sm text-slate-800 truncate font-medium">
+                        {product.name}
+                      </span>
+                      {product.description && (
+                        <span className="text-[11px] text-slate-400 truncate leading-tight">
+                          {product.description.replace(/<[^>]*>/g, "")}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <span className="text-sm font-bold text-emerald-600 shrink-0">
                     Q{product.calculated_sale_price.toLocaleString(undefined, {
