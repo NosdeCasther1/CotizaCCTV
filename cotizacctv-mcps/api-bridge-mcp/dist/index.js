@@ -40,7 +40,7 @@ class BridgeMCPServer {
                     inputSchema: {
                         type: "object",
                         properties: {
-                            method: { enum: ["GET", "POST", "PUT", "PATCH", "DELETE"], description: "HTTP Method" },
+                            method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE"], description: "HTTP Method" },
                             url: { type: "string", description: "URL of the endpoint" },
                             headers: { type: "object", description: "Optional HTTP headers" },
                             body: { type: "object", description: "Optional JSON body" },
