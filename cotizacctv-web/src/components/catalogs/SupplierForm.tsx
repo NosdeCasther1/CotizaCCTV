@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DialogFooter } from "@/components/ui/dialog";
-import { createSupplier } from "@/services/supplierService";
+import { createSupplier, updateSupplier, Supplier } from "@/services/supplierService";
 
 const supplierSchema = z.object({
   name: z.string().min(1, "El nombre es requerido"),
@@ -22,9 +22,10 @@ type SupplierFormValues = z.infer<typeof supplierSchema>;
 interface SupplierFormProps {
   onSuccess: () => void;
   onCancel: () => void;
+  initialData?: Supplier;
 }
 
-export function SupplierForm({ onSuccess, onCancel }: SupplierFormProps) {
+export function SupplierForm({ onSuccess, onCancel, initialData }: SupplierFormProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -34,9 +35,9 @@ export function SupplierForm({ onSuccess, onCancel }: SupplierFormProps) {
   } = useForm<SupplierFormValues>({
     resolver: zodResolver(supplierSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
+      name: initialData?.name || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || "",
     },
   });
 
@@ -49,10 +50,16 @@ export function SupplierForm({ onSuccess, onCancel }: SupplierFormProps) {
         email: values.email || null,
         phone: values.phone || null,
       };
-      await createSupplier(payload as any);
+      
+      if (initialData) {
+        await updateSupplier(initialData.id, payload as any);
+      } else {
+        await createSupplier(payload as any);
+      }
+      
       onSuccess();
     } catch (error) {
-      console.error("Error al crear proveedor:", error);
+      console.error("Error al guardar proveedor:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -121,7 +128,7 @@ export function SupplierForm({ onSuccess, onCancel }: SupplierFormProps) {
         </Button>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Guardar Proveedor
+          {initialData ? "Actualizar Proveedor" : "Guardar Proveedor"}
         </Button>
       </DialogFooter>
     </form>

@@ -20,6 +20,11 @@ export const createSupplier = async (payload: SupplierFormValues): Promise<Suppl
   return data.data;
 };
 
+export const updateSupplier = async (id: number, payload: Partial<SupplierFormValues>): Promise<Supplier> => {
+  const { data } = await api.put<{ data: Supplier }>(`/suppliers/${id}`, payload);
+  return data.data;
+};
+
 export const deleteSupplier = async (id: number): Promise<void> => {
   await api.delete(`/suppliers/${id}`);
 };

@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Trash, Plus, Search } from "lucide-react";
+import { Trash, Plus, Search, Pencil } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,7 @@ export default function CategoriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
 
   const fetchCategories = async () => {
     setIsLoading(true);
@@ -64,6 +65,19 @@ export default function CategoriesPage() {
   const handleCreateSuccess = () => {
     fetchCategories();
     setIsDialogOpen(false);
+    setEditingCategory(null);
+  };
+
+  const handleEdit = (category: Category) => {
+    setEditingCategory(category);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setEditingCategory(null);
+    }
   };
 
   const handleDelete = async (id: number, name: string) => {
@@ -105,7 +119,7 @@ export default function CategoriesPage() {
           />
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger
             render={
               <Button className="gap-2">
@@ -116,11 +130,14 @@ export default function CategoriesPage() {
           />
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Añadir Categoría</DialogTitle>
+              <DialogTitle>
+                {editingCategory ? 'Editar Categoría' : 'Añadir Categoría'}
+              </DialogTitle>
             </DialogHeader>
             <CategoryForm 
               onSuccess={handleCreateSuccess} 
-              onCancel={() => setIsDialogOpen(false)} 
+              onCancel={() => handleDialogChange(false)} 
+              initialData={editingCategory || undefined}
             />
           </DialogContent>
         </Dialog>
@@ -157,7 +174,17 @@ export default function CategoriesPage() {
                       {category.products_count ?? 0} productos
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:text-primary hover:bg-primary/10"
+                      onClick={() => handleEdit(category)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Editar</span>
+                    </Button>
+
                     <AlertDialog>
                       <AlertDialogTrigger
                         render={

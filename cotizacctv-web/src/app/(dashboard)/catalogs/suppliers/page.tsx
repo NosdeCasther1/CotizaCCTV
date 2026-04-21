@@ -24,7 +24,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Trash, Plus, Search, Phone, Mail } from "lucide-react";
+import { Trash, Plus, Search, Phone, Mail, Pencil } from "lucide-react";
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +44,7 @@ export default function SuppliersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
 
   const fetchSuppliers = async () => {
     setIsLoading(true);
@@ -64,6 +65,19 @@ export default function SuppliersPage() {
   const handleCreateSuccess = () => {
     fetchSuppliers();
     setIsDialogOpen(false);
+    setEditingSupplier(null);
+  };
+
+  const handleEdit = (supplier: Supplier) => {
+    setEditingSupplier(supplier);
+    setIsDialogOpen(true);
+  };
+
+  const handleDialogChange = (open: boolean) => {
+    setIsDialogOpen(open);
+    if (!open) {
+      setEditingSupplier(null);
+    }
   };
 
   const handleDelete = async (id: number, name: string) => {
@@ -106,7 +120,7 @@ export default function SuppliersPage() {
           />
         </div>
 
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
           <DialogTrigger
             render={
               <Button className="gap-2">
@@ -117,11 +131,14 @@ export default function SuppliersPage() {
           />
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Añadir Proveedor</DialogTitle>
+              <DialogTitle>
+                {editingSupplier ? 'Editar Proveedor' : 'Añadir Proveedor'}
+              </DialogTitle>
             </DialogHeader>
             <SupplierForm 
               onSuccess={handleCreateSuccess} 
-              onCancel={() => setIsDialogOpen(false)} 
+              onCancel={() => handleDialogChange(false)} 
+              initialData={editingSupplier || undefined}
             />
           </DialogContent>
         </Dialog>
@@ -179,7 +196,17 @@ export default function SuppliersPage() {
                       {supplier.products_count ?? 0} productos
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-right flex justify-end gap-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:text-primary hover:bg-primary/10"
+                      onClick={() => handleEdit(supplier)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Editar</span>
+                    </Button>
+
                     <AlertDialog>
                       <AlertDialogTrigger
                         render={

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Category } from "@/types";
-import { createCategory } from "@/services/categoryService";
+import { createCategory, updateCategory } from "@/services/categoryService";
 
 const categorySchema = z.object({
   name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
@@ -52,10 +52,16 @@ export function CategoryForm({ onSuccess, onCancel, initialData }: CategoryFormP
         ...values,
         margin_percentage: values.margin_percentage === "" ? null : Number(values.margin_percentage),
       };
-      await createCategory(payload as any);
+      
+      if (initialData) {
+        await updateCategory(initialData.id, payload as any);
+      } else {
+        await createCategory(payload as any);
+      }
+      
       onSuccess();
     } catch (error) {
-      console.error("Error al crear categoría:", error);
+      console.error("Error al guardar categoría:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -103,7 +109,7 @@ export function CategoryForm({ onSuccess, onCancel, initialData }: CategoryFormP
         </Button>
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Guardar Categoría
+          {initialData ? "Actualizar Categoría" : "Guardar Categoría"}
         </Button>
       </DialogFooter>
     </form>

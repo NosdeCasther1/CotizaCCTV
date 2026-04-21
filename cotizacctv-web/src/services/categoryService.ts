@@ -19,6 +19,11 @@ export const createCategory = async (payload: CategoryFormValues): Promise<Categ
   return data.data;
 };
 
+export const updateCategory = async (id: number, payload: Partial<CategoryFormValues>): Promise<Category> => {
+  const { data } = await api.put<{ data: Category }>(`/categories/${id}`, payload);
+  return data.data;
+};
+
 export const deleteCategory = async (id: number): Promise<void> => {
   await api.delete(`/categories/${id}`);
 };
