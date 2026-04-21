@@ -12,13 +12,15 @@ import {
   X, 
   LayoutDashboard,
   Package,
-  ShieldCheck
+  ShieldCheck,
+  FileText
 } from 'lucide-react';
 
 // Centralizamos las rutas para escalabilidad y control de roles a futuro
 const navItems = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Nueva Cotización', href: '/quotes/new', icon: Calculator },
+  { name: 'Historial', href: '/quotes', icon: FileText },
   { name: 'Productos', href: '/catalogs/products', icon: Package },
   { name: 'Marcas', href: '/catalogs/brands', icon: ShieldCheck },
   { name: 'Categorías', href: '/catalogs/categories', icon: Tags },
@@ -54,7 +56,9 @@ export default function Sidebar() {
         {/* Links de Navegación */}
         <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
           {navItems.map((item) => {
-            const isActive = pathname.startsWith(item.href);
+            const isActive = item.href === '/quotes' 
+              ? pathname === '/quotes' // Exact match for list
+              : pathname.startsWith(item.href);
             const Icon = item.icon;
 
             return (
