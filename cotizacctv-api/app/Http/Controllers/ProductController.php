@@ -59,6 +59,7 @@ class ProductController extends Controller
             }
 
             $product->suppliers()->sync($syncData);
+            $product->syncPurchasePrice();
             
             return response()->json([
                 'message' => 'Producto creado correctamente',
@@ -103,6 +104,7 @@ class ProductController extends Controller
             }
 
             $product->suppliers()->sync($syncData);
+            $product->syncPurchasePrice();
             
             return response()->json([
                 'message' => 'Producto actualizado correctamente',

@@ -78,7 +78,7 @@ class Product extends Model
     public function getCalculatedSalePriceAttribute(): float
     {
         // 1. Use purchase_price if available, otherwise fallback to suppliers
-        if ($this->purchase_price !== null) {
+        if ($this->purchase_price > 0) {
             $baseCost = (float) $this->purchase_price;
         } elseif ($this->suppliers->isNotEmpty()) {
             // Find default supplier or use max cost
@@ -101,6 +101,29 @@ class Product extends Model
         }
 
         return round($baseCost / (1 - ($margin / 100)), 0);
+    }
+
+    /**
+     * Sincroniza el purchase_price del producto con el costo del proveedor predeterminado.
+     */
+    public function syncPurchasePrice(): void
+    {
+        $defaultSupplier = $this->suppliers()->wherePivot('is_default', true)->first();
+        
+        if ($defaultSupplier) {
+            $this->purchase_price = $defaultSupplier->pivot->cost;
+        } else {
+            // Si no hay predeterminado, tomamos el costo máximo entre los proveedores
+            $maxCost = \DB::table('supplier_product')
+                ->where('product_id', $this->id)
+                ->max('cost');
+            
+            if ($maxCost) {
+                $this->purchase_price = $maxCost;
+            }
+        }
+        
+        $this->save();
     }
 }
 
