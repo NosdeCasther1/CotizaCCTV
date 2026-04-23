@@ -35,7 +35,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { quoteSchema, QuoteFormValues } from "@/lib/validations/quote";
 import { generateQuote } from "@/services/quoteService";
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { Quote, Product } from "@/types";
 import { getProducts } from "@/services/productService";
 import { getSettings } from "@/services/settingService";
@@ -92,6 +92,9 @@ export default function NewQuotePage() {
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  
+  // Ref para rastrear el descuento automático generado por cambios de precio en la tabla (v1.3.1)
+  const lastAutoDiscountRef = useRef(0);
 
   // ── Fetch initial data ──────────────────────────────────────────────────
   useEffect(() => {
@@ -125,6 +128,7 @@ export default function NewQuotePage() {
       discount_amount: 0,
       discount_type: "fixed",
       items: [],
+      extra_expenses: [],
     },
     mode: "onChange",
   });
@@ -135,7 +139,13 @@ export default function NewQuotePage() {
     if (draft) {
       try {
         const parsed = JSON.parse(draft) as QuoteFormValues;
+        
+        // v1.3.1: Resetear descuentos siempre al iniciar para limpiar estados de sesiones anteriores
+        parsed.discount_amount = 0;
+        parsed.discount_type = "fixed";
+        
         form.reset(parsed);
+        lastAutoDiscountRef.current = 0; // Iniciar en 0 para que el primer cambio sincronice todo
       } catch (e) {
         console.error("Error parsing quote draft", e);
       }
@@ -153,14 +163,20 @@ export default function NewQuotePage() {
         form.setValue("freight_cost", Math.round(distance * ratePerKm));
       }
 
-      // Auto-calc labor
-      if (name?.startsWith("items")) {
+      // Auto-calc labor & v1.3.1 Watcher de Descuento Automático Reactivo
+      if (name?.startsWith("items") || name === "discount_type") {
         let totalDevices = 0;
-        value.items?.forEach((item: any) => {
-          if (!item?.product_id) return;
-          const product = availableProducts.find(
-            (p) => p.id === item.product_id
-          );
+        let currentAutoDiscount = 0;
+        
+        // Usar los valores actuales del formulario para el cálculo
+        const currentItems = form.getValues("items") || [];
+        
+        currentItems.forEach((item) => {
+          if (!item.product_id) return;
+          const product = availableProducts.find(p => p.id === item.product_id);
+          if (!product) return;
+
+          // 1. Lógica de Mano de Obra
           const slug = product?.category?.slug?.toLowerCase() || "";
           if (
             slug.includes("camara") ||
@@ -169,12 +185,38 @@ export default function NewQuotePage() {
           ) {
             totalDevices += Number(item.quantity || 0);
           }
+
+          // 2. Lógica de Descuento (Diferencia vs Sugerido)
+          const suggestedPrice = Number(product.calculated_sale_price || 0);
+          const unitPrice = Number(item.unit_price || 0);
+
+          if (unitPrice < suggestedPrice) {
+            currentAutoDiscount += (suggestedPrice - unitPrice) * Number(item.quantity || 0);
+          }
         });
+
+        // Aplicar Mano de Obra
         const laborPerDevice = Number(settings.labor_cost_per_device || 0);
         form.setValue(
           "installation_total",
           Math.round(totalDevices * laborPerDevice)
         );
+
+        // Aplicar Descuento si es tipo Fijo
+        const discountType = form.getValues("discount_type");
+        if (discountType === "fixed") {
+          const delta = currentAutoDiscount - lastAutoDiscountRef.current;
+          
+          if (delta !== 0) {
+            const currentDiscountAmount = Number(form.getValues("discount_amount") || 0);
+            const newTotalDiscount = Math.max(0, currentDiscountAmount + delta);
+            
+            form.setValue("discount_amount", Math.round(newTotalDiscount));
+            lastAutoDiscountRef.current = currentAutoDiscount;
+          }
+        } else {
+           lastAutoDiscountRef.current = 0;
+        }
       }
     });
 
@@ -187,6 +229,15 @@ export default function NewQuotePage() {
     name: "items",
   });
 
+  const { 
+    fields: extraFields, 
+    append: appendExtra, 
+    remove: removeExtra 
+  } = useFieldArray({
+    control: form.control,
+    name: "extra_expenses",
+  });
+
   // ── Live totals ─────────────────────────────────────────────────────────
   const watchedItems = useWatch({ control: form.control, name: "items" }) || [];
   const watchedFreight =
@@ -197,6 +248,8 @@ export default function NewQuotePage() {
     useWatch({ control: form.control, name: "discount_amount" }) || 0;
   const watchedDiscountType =
     useWatch({ control: form.control, name: "discount_type" }) || "fixed";
+
+  const watchedExtraExpenses = useWatch({ control: form.control, name: "extra_expenses" }) || [];
 
   const liveTotalMaterials = useMemo(() => {
     return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
@@ -220,12 +273,17 @@ export default function NewQuotePage() {
     }, 0);
   }, [watchedItems, availableProducts]);
 
-  const liveEstimatedProfit = useMemo(() => {
-    return liveTotalMaterials - liveTotalPurchasePrice;
-  }, [liveTotalMaterials, liveTotalPurchasePrice]);
+  const liveTotalSuggestedMaterials = useMemo(() => {
+    return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
+      if (!item || !item.product_id) return acc;
+      const product = availableProducts.find(p => p.id === item.product_id);
+      const suggested = product?.calculated_sale_price || item.unit_price || 0;
+      return acc + Math.round(suggested * (item.quantity || 0));
+    }, 0);
+  }, [watchedItems, availableProducts]);
 
   const liveBaseTotal =
-    liveTotalMaterials +
+    liveTotalSuggestedMaterials +
     Number(watchedFreight) +
     Number(watchedInstallation);
 
@@ -237,7 +295,22 @@ export default function NewQuotePage() {
     return amount;
   }, [liveBaseTotal, watchedDiscountAmount, watchedDiscountType]);
 
-  const grandTotal = Math.max(0, liveBaseTotal - liveDiscountValue);
+  const liveTotalExtraExpenses = useMemo(() => {
+    return (watchedExtraExpenses as QuoteFormValues["extra_expenses"]).reduce((acc, exp) => {
+      return acc + (Number(exp.amount) || 0);
+    }, 0);
+  }, [watchedExtraExpenses]);
+
+  const liveEstimatedGrossProfit = useMemo(() => {
+    const profitEquipos = liveTotalMaterials - liveTotalPurchasePrice;
+    return profitEquipos + Number(watchedInstallation) + Number(watchedFreight);
+  }, [liveTotalMaterials, liveTotalPurchasePrice, watchedInstallation, watchedFreight]);
+
+  const liveNetRealProfit = useMemo(() => {
+    return liveEstimatedGrossProfit - (liveDiscountValue || 0) - liveTotalExtraExpenses;
+  }, [liveEstimatedGrossProfit, liveDiscountValue, liveTotalExtraExpenses]);
+
+  const grandTotal = Math.max(0, liveBaseTotal - (liveDiscountValue || 0));
 
   // ── DnD sensors ─────────────────────────────────────────────────────────
   const sensors = useSensors(
@@ -682,6 +755,76 @@ export default function NewQuotePage() {
               </div>
             )}
           </section>
+
+          {/* ══ Gastos Operativos del Proyecto (Variables) ══ */}
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="flex items-center gap-2 px-6 pt-5 pb-4 border-b border-slate-100">
+              <div className="w-1 h-6 bg-orange-500 rounded-full" />
+              <h2 className="text-lg font-semibold text-slate-800 flex-1">
+                Gastos Operativos del Proyecto (Variables)
+              </h2>
+              <button
+                type="button"
+                onClick={() => appendExtra({ description: "", amount: 0 })}
+                disabled={!!quoteResult}
+                className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                + Agregar Gasto
+              </button>
+            </div>
+
+            <div className="p-6">
+              {extraFields.length > 0 ? (
+                <div className="space-y-4">
+                  {extraFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-4 items-start animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="flex-1 space-y-1">
+                        <input
+                          {...form.register(`extra_expenses.${index}.description`)}
+                          disabled={!!quoteResult}
+                          placeholder="Ej: Gasolina extra, Almuerzos, etc."
+                          className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        />
+                      </div>
+                      <div className="w-40 space-y-1">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Q</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            {...form.register(`extra_expenses.${index}.amount`)}
+                            disabled={!!quoteResult}
+                            className="w-full rounded-xl border border-slate-200 p-3 pl-8 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm font-semibold"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeExtra(index)}
+                        disabled={!!quoteResult}
+                        className="p-3 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-0"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
+                  <p className="text-slate-400 text-sm">No hay gastos extra registrados.</p>
+                  <button
+                    type="button"
+                    onClick={() => appendExtra({ description: "", amount: 0 })}
+                    disabled={!!quoteResult}
+                    className="mt-2 text-xs font-bold text-orange-600 hover:underline"
+                  >
+                    Haga clic aquí para agregar el primero
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         {/* ── RIGHT COLUMN: Sticky Sidebar ── */}
@@ -710,9 +853,9 @@ export default function NewQuotePage() {
               <CardContent className="p-6 space-y-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-medium whitespace-nowrap">Equipos y Materiales</span>
+                    <span className="text-slate-500 font-medium whitespace-nowrap">Total Bruto Equipos</span>
                     <span className="text-slate-900 font-semibold tabular-nums">
-                      Q {fmt(liveTotalMaterials)}
+                      Q {fmt(liveTotalSuggestedMaterials)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -739,16 +882,35 @@ export default function NewQuotePage() {
 
                 <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
                   <div className="flex justify-between items-center mb-1">
-                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Utilidad Estimada (Equipos)</span>
-                    <span className="text-emerald-700 font-bold text-xs">+ Q {fmt(liveEstimatedProfit)}</span>
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Utilidad Bruta Estimada</span>
+                    <span className="text-emerald-700 font-bold text-xs">+ Q {fmt(liveEstimatedGrossProfit)}</span>
                   </div>
                   <div className="w-full bg-emerald-200 h-1.5 rounded-full overflow-hidden">
                     <div 
                       className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
-                      style={{ width: `${Math.min(100, (liveEstimatedProfit / (liveTotalMaterials || 1)) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (liveEstimatedGrossProfit / (grandTotal || 1)) * 100)}%` }}
                     />
                   </div>
-                  <p className="text-[9px] text-emerald-600 mt-1 font-medium italic">* Solo para vista interna del usuario</p>
+                </div>
+
+                {liveTotalExtraExpenses > 0 && (
+                  <div className="flex justify-between items-center px-2 text-orange-600">
+                    <span className="text-xs font-medium">(-) Gastos Extra Var.</span>
+                    <span className="text-xs font-bold tabular-nums">Q {fmt(liveTotalExtraExpenses)}</span>
+                  </div>
+                )}
+
+                <div className="bg-blue-900 text-white p-4 rounded-2xl shadow-inner">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Utilidad Neta Real</span>
+                    <span className="text-blue-300 font-bold text-xs">Final</span>
+                  </div>
+                  <div className="text-2xl font-black tabular-nums">
+                    Q {fmt(liveNetRealProfit)}
+                  </div>
+                  <p className="text-[9px] opacity-60 mt-1 italic leading-tight">
+                    * Descuentos y gastos extra aplicados.
+                  </p>
                 </div>
 
                 <Separator className="bg-slate-100" />
