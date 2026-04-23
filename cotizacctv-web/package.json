@@ -1,6 +1,6 @@
 {
   "name": "cotizacctv-web",
-  "version": "1.7.0",
+  "version": "1.7.3",
   "private": true,
   "scripts": {
     "dev": "next dev",
