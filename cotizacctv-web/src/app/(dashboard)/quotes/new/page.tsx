@@ -1,8 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Trash2, PackageSearch, GripVertical } from "lucide-react";
+import { Trash2, PackageSearch, GripVertical, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DndContext,
   closestCenter,
@@ -529,14 +534,32 @@ export default function NewQuotePage() {
                                   <td className="px-3 py-1.5">
                                     {selectedProduct ? (
                                       <div className="flex flex-col">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
-                                            {selectedProduct.sku}
-                                          </span>
-                                          <span className="text-slate-800 font-medium leading-tight">
-                                            {selectedProduct.name}
-                                          </span>
-                                        </div>
+                                        <Tooltip>
+                                          <TooltipTrigger asChild>
+                                            <div className="flex items-center gap-2 cursor-help group/info">
+                                              <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
+                                                {selectedProduct.sku}
+                                              </span>
+                                              <span className="text-slate-800 font-medium leading-tight border-b border-dotted border-slate-300 group-hover/info:border-slate-500 transition-colors">
+                                                {selectedProduct.name}
+                                              </span>
+                                              <Info className="h-3 w-3 text-slate-400 group-hover/info:text-blue-500 transition-colors" />
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="right" className="max-w-xs bg-slate-900 text-slate-50 p-3 shadow-2xl border-none rounded-xl">
+                                            <div className="space-y-1.5">
+                                              <div className="flex items-center gap-1.5 border-b border-slate-700 pb-1 mb-1">
+                                                <Info className="h-3 w-3 text-blue-400" />
+                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Especificaciones</p>
+                                              </div>
+                                              <p className="text-[11px] leading-relaxed text-slate-200">
+                                                {selectedProduct.description 
+                                                  ? selectedProduct.description.replace(/<[^>]*>/g, "") 
+                                                  : "Sin descripción técnica disponible."}
+                                              </p>
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
                                         {/* Feedback de Utilidad */}
                                         <div className="mt-1 flex items-center gap-2">
                                           {(() => {

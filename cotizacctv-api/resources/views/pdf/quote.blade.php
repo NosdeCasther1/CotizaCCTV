@@ -15,12 +15,12 @@
             padding: 0;
         }
         .container {
-            padding: 30px;
+            padding: 20px 30px;
         }
         .header {
             border-bottom: 2px solid {{ $settings['primary_color'] ?? '#1a3a5a' }};
-            padding-bottom: 10px;
-            margin-bottom: 20px;
+            padding-bottom: 8px;
+            margin-bottom: 15px;
         }
         .header table {
             width: 100%;
@@ -34,7 +34,7 @@
             text-align: right;
         }
         .client-info {
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
         .client-info h2 {
             font-size: 14px;
@@ -45,21 +45,30 @@
         table.items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
+            table-layout: fixed;
         }
         table.items-table th {
             background-color: #f8f9fa;
             border-bottom: 2px solid #dee2e6;
-            padding: 10px;
+            padding: 6px 8px;
             text-align: left;
             color: {{ $settings['primary_color'] ?? '#1a3a5a' }};
+            font-size: 10px;
+            text-transform: uppercase;
         }
         table.items-table td {
             border-bottom: 1px solid #dee2e6;
-            padding: 10px;
+            padding: 6px 8px;
+            vertical-align: top;
+            word-wrap: break-word;
+        }
+        table.items-table tr {
+            page-break-inside: avoid;
         }
         .totals-section {
             width: 100%;
+            page-break-inside: avoid;
         }
         .totals-table {
             width: 300px;
@@ -96,9 +105,10 @@
             text-align: right;
         }
         .product-description {
-            font-size: 10px;
-            color: #666;
-            margin-top: 5px;
+            font-size: 8.5pt;
+            color: #555;
+            margin-top: 3px;
+            line-height: 1.3;
         }
         .product-description p {
             margin: 2px 0;
@@ -116,9 +126,9 @@
             color: {{ $settings['primary_color'] ?? '#1a3a5a' }};
         }
         .category-header td {
-            padding: 8px 10px !important;
+            padding: 5px 8px !important;
             border-bottom: 2px solid #e2e8f0 !important;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
@@ -156,8 +166,8 @@
                         <strong>Nombre:</strong> {{ $quote->client_name }}
                     </td>
                     <td width="50%" class="text-right">
-                        <strong>Válida hasta:</strong> {{ $quote->expires_at->format('d/m/Y') }}<br>
-                        <strong>Días de Inst.:</strong> {{ $quote->installation_days }} días
+                        <strong>Válida hasta:</strong> {{ $quote->expires_at->format('d/m/Y') }}
+                        <br><strong>Días de Inst.:</strong> {{ $quote->installation_days }} días
                     </td>
                 </tr>
             </table>
@@ -166,11 +176,11 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th width="15%">SKU</th>
+                    <th width="20%">SKU</th>
                     <th width="45%">Descripción</th>
                     <th width="10%" class="text-right">Cant.</th>
-                    <th width="15%" class="text-right">Precio Unit.</th>
-                    <th width="15%" class="text-right">Total</th>
+                    <th width="12%" class="text-right">P. Unit.</th>
+                    <th width="13%" class="text-right">Total</th>
                 </tr>
             </thead>
             <tbody>
@@ -189,9 +199,9 @@
                             $itemTotal = $unitPriceWithMargin * $item->quantity;
                         @endphp
                         <tr>
-                            <td>{{ $item->product->sku ?? 'N/A' }}</td>
+                            <td style="font-size: 8.5pt;">{{ $item->product->sku ?? 'N/A' }}</td>
                             <td>
-                                <strong>{{ $item->product ? $item->product->name : 'Producto Eliminado' }}</strong>
+                                <div style="font-size: 10pt; font-weight: bold;">{{ $item->product ? $item->product->name : 'Producto Eliminado' }}</div>
                                 @if($item->product && $item->product->description)
                                     <div class="product-description">
                                         {!! $item->product->description !!}
