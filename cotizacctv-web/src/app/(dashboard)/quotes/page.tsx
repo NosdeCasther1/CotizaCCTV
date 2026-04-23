@@ -9,11 +9,21 @@ import {
   Pencil, 
   Download,
   Filter,
-  Eye
+  Eye,
+  RefreshCw,
+  MessageCircle
 } from "lucide-react";
-import { getQuotes } from "@/services/quoteService";
+import { getQuotes, updateQuoteStatus } from "@/services/quoteService";
 import { Quote } from "@/types";
 import { Badge } from "@/components/ui/badge";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 export default function QuotesListPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -21,38 +31,55 @@ export default function QuotesListPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    const fetchQuotes = async () => {
-      try {
-        setIsLoading(true);
-        const data = await getQuotes();
-        // Ordenar por ID descendente (más recientes primero)
-        setQuotes(data.sort((a, b) => b.id - a.id));
-      } catch (error) {
-        console.error("Error fetching quotes:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchQuotes = async () => {
+    try {
+      setIsLoading(true);
+      const data = await getQuotes();
+      // Ordenar por ID descendente (más recientes primero)
+      setQuotes(data.sort((a, b) => b.id - a.id));
+    } catch (error) {
+      console.error("Error fetching quotes:", error);
+      toast.error("Error al cargar las cotizaciones");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchQuotes();
   }, []);
 
+  const handleStatusChange = async (quoteId: number, newStatus: string) => {
+    try {
+      await updateQuoteStatus(quoteId, newStatus);
+      
+      // Actualizar el estado localmente para una respuesta fluida
+      setQuotes(prevQuotes => 
+        prevQuotes.map(q => q.id === quoteId ? { ...q, status: newStatus as any } : q)
+      );
+      
+      toast.success(`Estado actualizado a ${translatedStatus[newStatus]}`);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("No se pudo actualizar el estado");
+    }
+  };
+
   const getBadgeVariant = (status: string) => {
     switch (status) {
-      case 'approved': return 'success';
+      case 'completed': return 'success';
       case 'rejected': return 'destructive';
-      case 'draft': return 'secondary';
-      case 'sent': return 'default';
+      case 'pending': return 'warning';
+      case 'accepted': return 'default'; // Generalmente azul en este tema
       default: return 'outline';
     }
   };
 
   const translatedStatus: Record<string, string> = {
-    draft: 'Borrador',
-    sent: 'Enviada',
-    approved: 'Aprobada',
+    pending: 'Pendiente',
+    accepted: 'Aceptada',
     rejected: 'Rechazada',
+    completed: 'Completada',
   };
 
   const filteredQuotes = useMemo(() => {
@@ -67,7 +94,7 @@ export default function QuotesListPage() {
     });
   }, [quotes, searchTerm, statusFilter]);
 
-  if (isLoading) {
+  if (isLoading && quotes.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-4 animate-pulse">
         <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -93,7 +120,14 @@ export default function QuotesListPage() {
             Administra, busca y filtra todas las cotizaciones del sistema.
           </p>
         </div>
-        <div className="z-10 w-full md:w-auto">
+        <div className="z-10 w-full md:w-auto flex flex-col sm:flex-row gap-3">
+          <button 
+            onClick={fetchQuotes}
+            className="flex items-center justify-center gap-2 px-6 py-4 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-2xl transition-all active:scale-95"
+            title="Refrescar datos"
+          >
+            <RefreshCw className={`w-5 h-5 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
           <Link 
             href="/quotes/new" 
             className="flex items-center justify-center gap-2 px-8 py-4 bg-blue-600 text-white hover:bg-blue-500 font-bold rounded-2xl shadow-lg shadow-blue-500/30 transition-all active:scale-95 w-full md:w-auto"
@@ -130,10 +164,10 @@ export default function QuotesListPage() {
             className="w-full md:w-auto bg-slate-50 border border-slate-200 text-slate-700 py-3 px-4 rounded-xl outline-none focus:ring-2 focus:ring-blue-500/20 transition-all text-sm font-medium cursor-pointer"
           >
             <option value="all">Todas</option>
-            <option value="draft">Borrador</option>
-            <option value="sent">Enviada</option>
-            <option value="approved">Aprobada</option>
-            <option value="rejected">Rechazada</option>
+            <option value="pending">Pendientes</option>
+            <option value="accepted">Aceptadas</option>
+            <option value="rejected">Rechazadas</option>
+            <option value="completed">Completadas</option>
           </select>
         </div>
       </section>
@@ -174,9 +208,27 @@ export default function QuotesListPage() {
                     </span>
                   </td>
                   <td className="py-4 px-6 text-center">
-                    <Badge variant={getBadgeVariant(quote.status)}>
-                      {translatedStatus[quote.status]}
-                    </Badge>
+                    <div className="flex justify-center">
+                      <Select 
+                        value={quote.status} 
+                        onValueChange={(val) => handleStatusChange(quote.id, val)}
+                      >
+                        <SelectTrigger className={`h-8 w-[130px] border-none shadow-none focus:ring-0 font-semibold rounded-full px-3 ${
+                          quote.status === 'pending' ? 'bg-amber-100 text-amber-700' :
+                          quote.status === 'accepted' ? 'bg-blue-100 text-blue-700' :
+                          quote.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                          'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          <SelectValue placeholder="Estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="pending" className="text-amber-600 font-medium">Pendiente</SelectItem>
+                          <SelectItem value="accepted" className="text-blue-600 font-medium">Aceptada</SelectItem>
+                          <SelectItem value="rejected" className="text-red-600 font-medium">Rechazada</SelectItem>
+                          <SelectItem value="completed" className="text-emerald-600 font-medium">Completada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </td>
                   <td className="py-4 px-6 text-right">
                     <div className="font-black text-slate-900">
@@ -199,6 +251,17 @@ export default function QuotesListPage() {
                       >
                         <Pencil className="w-5 h-5" />
                       </Link>
+                      {quote.client_phone && (
+                        <a
+                          href={`https://wa.me/${quote.client_phone.replace(/[\s-]/g, '')}?text=${encodeURIComponent(`Hola ${quote.client_name}, le saluda Edson de CotizaCCTV. Le adjunto la cotización #${String(quote.id).padStart(4, '0')} por los servicios solicitados. Puede verla aquí: http://localhost:8000/api/quotes/${quote.id}/pdf`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                          title="Enviar por WhatsApp"
+                        >
+                          <MessageCircle className="w-5 h-5" />
+                        </a>
+                      )}
                       <a 
                         href={`http://localhost:8000/api/quotes/${quote.id}/pdf`}
                         target="_blank"

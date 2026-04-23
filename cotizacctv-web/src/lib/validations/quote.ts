@@ -2,6 +2,7 @@ import * as z from "zod";
 
 export const quoteSchema = z.object({
   client_name: z.string().min(2, "El nombre del cliente debe tener al menos 2 caracteres."),
+  client_phone: z.string().optional(),
   freight_cost: z.coerce.number().min(0, "El flete no puede ser negativo."),
   installation_total: z.coerce.number().min(0, "La mano de obra no puede ser negativa."),
   distance_km: z.coerce.number().min(0, "La distancia no puede ser negativa."),
@@ -15,6 +16,12 @@ export const quoteSchema = z.object({
       unit_price: z.coerce.number().optional(),
     })
   ).min(1, "Debe agregar al menos un equipo a la cotización."),
+  extra_expenses: z.array(
+    z.object({
+      description: z.string().min(1, "La descripción es requerida."),
+      amount: z.coerce.number().min(0, "El monto no puede ser negativo."),
+    })
+  ).optional().default([]),
 });
 
 export type QuoteFormValues = z.infer<typeof quoteSchema>;

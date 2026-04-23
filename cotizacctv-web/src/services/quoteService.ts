@@ -22,3 +22,7 @@ export const updateQuote = async (id: string | number, payload: QuoteFormValues)
   const { data } = await api.put<{ message: string; data: Quote }>(`/quotes/${id}`, payload);
   return data.data;
 };
+
+export const updateQuoteStatus = async (id: string | number, status: string): Promise<void> => {
+  await api.patch(`/quotes/${id}/status`, { status });
+};

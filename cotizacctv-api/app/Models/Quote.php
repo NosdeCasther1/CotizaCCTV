@@ -9,6 +9,7 @@ class Quote extends Model
 {
     protected $fillable = [
         'client_name',
+        'client_phone',
         'subtotal_materials',
         'margin_applied',
         'freight_cost',
@@ -42,5 +43,10 @@ class Quote extends Model
     public function items(): HasMany
     {
         return $this->hasMany(QuoteItem::class);
+    }
+
+    public function extraExpenses(): HasMany
+    {
+        return $this->hasMany(QuoteExtraExpense::class);
     }
 }

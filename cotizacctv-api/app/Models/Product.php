@@ -19,7 +19,8 @@ class Product extends Model
         'margin_percentage',
         'utility_type',
         'purchase_price',
-        'tax_rate'
+        'tax_rate',
+        'image_path'
     ];
 
     protected $casts = [
@@ -31,7 +32,8 @@ class Product extends Model
 
     protected $appends = [
         'active_margin',
-        'calculated_sale_price'
+        'calculated_sale_price',
+        'image_url'
     ];
 
     protected $with = ['category', 'brand', 'suppliers'];
@@ -101,6 +103,11 @@ class Product extends Model
         }
 
         return round($baseCost / (1 - ($margin / 100)), 0);
+    }
+
+    public function getImageUrlAttribute(): ?string
+    {
+        return $this->image_path ? asset('storage/' . $this->image_path) : null;
     }
 
     /**

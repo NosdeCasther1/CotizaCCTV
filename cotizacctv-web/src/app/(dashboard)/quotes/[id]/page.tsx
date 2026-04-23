@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { Pencil } from "lucide-react";
+import { Pencil, MessageCircle } from "lucide-react";
 import { Quote } from "@/types";
 import { getQuoteById } from "@/services/quoteService";
 
@@ -131,6 +131,17 @@ export default function QuoteDetailsPage() {
             </svg>
             Descargar PDF
           </button>
+          {quote.client_phone && (
+            <a 
+              href={`https://wa.me/${quote.client_phone.replace(/[\s-]/g, '')}?text=${encodeURIComponent(`Hola ${quote.client_name}, le saluda Edson de CotizaCCTV. Le adjunto la cotización #${String(quote.id).padStart(4, '0')} por los servicios solicitados. Puede verla aquí: http://localhost:8000/api/quotes/${quote.id}/pdf`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 md:flex-none px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold rounded-xl hover:from-green-400 hover:to-emerald-500 shadow-lg shadow-green-500/30 transition-all active:scale-95 flex items-center justify-center gap-2"
+            >
+              <MessageCircle className="h-5 w-5" />
+              WhatsApp
+            </a>
+          )}
         </div>
       </header>
 

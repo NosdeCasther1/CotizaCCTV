@@ -15,6 +15,7 @@ Route::post('settings', [SettingController::class, 'update']);
 
 // Endpoint del Motor Financiero
 Route::apiResource('quotes', QuoteController::class)->only(['index', 'store', 'show', 'update']);
+Route::patch('/quotes/{quote}/status', [QuoteController::class, 'updateStatus']);
 
 // Endpoints del Catálogo (CRUD)
 Route::apiResource('suppliers', SupplierController::class);
@@ -24,3 +25,8 @@ Route::apiResource('products', ProductController::class);
 
 // Generación de Documentos
 Route::get('/quotes/{quote}/pdf', [PdfController::class, 'generateQuotePdf']);
+
+// Mantenimientos
+use App\Http\Controllers\MaintenanceReminderController;
+Route::get('maintenance-reminders', [MaintenanceReminderController::class, 'index']);
+Route::patch('maintenance-reminders/{id}/called', [MaintenanceReminderController::class, 'markAsCalled']);

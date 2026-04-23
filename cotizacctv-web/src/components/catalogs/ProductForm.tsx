@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Trash2, Loader2, Package, Hash, DollarSign, Tag, Truck, Percent, Star, AlignLeft, ShieldCheck, Check, ChevronsUpDown, Coins } from "lucide-react";
+import { Plus, Trash2, Loader2, Package, Hash, DollarSign, Tag, Truck, Percent, Star, AlignLeft, ShieldCheck, Check, ChevronsUpDown, Coins, Image as ImageIcon, Camera, X } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -149,6 +149,7 @@ const productSchema = z.object({
     cost: z.string().refine((val) => !isNaN(Number(val)), { message: "Número inválido" }),
     is_default: z.boolean().default(false),
   })).min(1, "Debe tener al menos un proveedor"),
+  image: z.any().optional(),
 });
 
 // For values in the form
@@ -180,6 +181,7 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const [brands, setBrands] = useState<Brand[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [isLoadingRelations, setIsLoadingRelations] = useState(true);
+  const [imagePreview, setImagePreview] = useState<string | null>(product?.image_url || null);
 
   const {
     register,
@@ -268,22 +270,44 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
   const onSubmit = async (values: ProductFormValues) => {
     setIsSubmitting(true);
     try {
-      const payload = {
-        ...values,
-        brand_id: values.brand_id === "" ? null : Number(values.brand_id),
-        margin_percentage: values.margin_percentage === "" ? null : Number(values.margin_percentage),
-        tax_rate: values.tax_rate === "" ? 0 : Number(values.tax_rate),
-        suppliers: values.suppliers.map(s => ({
-          supplier_id: Number(s.supplier_id),
-          cost: Number(s.cost),
-          is_default: s.is_default
-        }))
-      };
+      const formData = new FormData();
+      formData.append("name", values.name);
+      formData.append("sku", values.sku);
+      formData.append("category_id", values.category_id);
+      
+      if (values.description) {
+        formData.append("description", values.description);
+      }
+      
+      if (values.brand_id) {
+        formData.append("brand_id", values.brand_id);
+      }
+      
+      formData.append("utility_type", values.utility_type);
+      
+      if (values.margin_percentage !== "") {
+        formData.append("margin_percentage", values.margin_percentage);
+      }
+      
+      formData.append("tax_rate", values.tax_rate === "" ? "0" : values.tax_rate);
+
+      // Append suppliers
+      values.suppliers.forEach((s, index) => {
+        formData.append(`suppliers[${index}][supplier_id]`, s.supplier_id);
+        formData.append(`suppliers[${index}][cost]`, s.cost);
+        formData.append(`suppliers[${index}][is_default]`, s.is_default ? "1" : "0");
+      });
+
+      // Append image if selected
+      const imageFile = (watch("image") as any);
+      if (imageFile instanceof File) {
+        formData.append("image", imageFile);
+      }
 
       if (product) {
-        await updateProduct(product.id, payload as any);
+        await updateProduct(product.id, formData);
       } else {
-        await createProduct(payload as any);
+        await createProduct(formData);
       }
       onSuccess();
     } catch (error: any) {
@@ -445,6 +469,89 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         </div>
         {errors.name && (
           <p className="text-sm text-destructive">{errors.name.message as React.ReactNode}</p>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        <Label>Imagen del Producto</Label>
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "relative h-24 w-24 rounded-lg border-2 border-dashed flex items-center justify-center overflow-hidden bg-muted",
+              imagePreview && "border-solid border-primary/20"
+            )}>
+              {imagePreview ? (
+                <>
+                  <img 
+                    src={imagePreview} 
+                    alt="Vista previa" 
+                    className="h-full w-full object-contain"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImagePreview(null);
+                      setValue("image", undefined);
+                    }}
+                    className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm hover:bg-destructive/90"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                  <Camera className="h-8 w-8 opacity-40" />
+                  <span className="text-[10px]">Sin imagen</span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 space-y-2">
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="relative"
+                  onClick={() => document.getElementById('image-upload')?.click()}
+                  disabled={isSubmitting}
+                >
+                  <ImageIcon className="mr-2 h-4 w-4" />
+                  {imagePreview ? "Cambiar Imagen" : "Subir Imagen"}
+                  <input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setValue("image", file);
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setImagePreview(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </Button>
+                {imagePreview && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Soporta JPG, PNG, WebP (Máx 2MB)
+                  </p>
+                )}
+              </div>
+              {!imagePreview && (
+                <p className="text-xs text-muted-foreground">
+                  Sube una foto clara del producto para el catálogo y cotizaciones.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+        {errors.image && (
+          <p className="text-sm text-destructive">{errors.image.message as React.ReactNode}</p>
         )}
       </div>
 

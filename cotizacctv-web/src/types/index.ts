@@ -46,6 +46,8 @@ export interface Product {
   utility_type?: 'percentage' | 'fixed_amount';
   purchase_price: number | null;
   tax_rate: number | null;
+  image_path?: string | null;
+  image_url?: string | null;
   active_margin: number;
   calculated_sale_price: number;
   suppliers?: ProductSupplier[];
@@ -66,9 +68,19 @@ export interface QuoteItem {
   updated_at?: string;
 }
 
+export interface QuoteExtraExpense {
+  id: number;
+  quote_id: number;
+  description: string;
+  amount: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Quote {
   id: number;
   client_name: string;
+  client_phone?: string | null;
   subtotal_materials: number;
   margin_applied: number;
   freight_cost: number;
@@ -76,13 +88,27 @@ export interface Quote {
   per_diem_cost: number;
   installation_total: number;
   grand_total: number;
-  status: 'draft' | 'sent' | 'approved' | 'rejected';
+  status: 'pending' | 'accepted' | 'rejected' | 'completed';
   installation_days: number;
   distance_km: number;
   discount_amount: number;
   discount_type: 'fixed' | 'percentage';
   expires_at: string;
   items?: QuoteItem[];
+  extra_expenses?: QuoteExtraExpense[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface MaintenanceReminder {
+  id: number;
+  quote_id: number;
+  client_name: string;
+  client_phone?: string | null;
+  last_service_date: string;
+  next_service_date: string;
+  status: 'pending' | 'called' | 'completed';
+  equipment_summary: string | null;
   created_at?: string;
   updated_at?: string;
 }

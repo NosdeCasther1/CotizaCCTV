@@ -50,6 +50,7 @@ class StoreProductRequest extends FormRequest
             'suppliers.*.supplier_id' => 'required|exists:suppliers,id',
             'suppliers.*.cost' => 'required|numeric|min:0',
             'suppliers.*.is_default' => 'nullable|boolean',
+            'image' => 'nullable|image|max:2048',
         ];
     }
 }

@@ -24,6 +24,7 @@ class QuoteRequest extends FormRequest
     {
         return [
             'client_name' => 'required|string|max:255',
+            'client_phone' => 'nullable|string|max:50',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
@@ -33,6 +34,9 @@ class QuoteRequest extends FormRequest
             'installation_days' => 'nullable|integer|min:1',
             'discount_amount' => 'nullable|numeric|min:0',
             'discount_type' => 'nullable|string|in:fixed,percentage',
+            'extra_expenses' => 'nullable|array',
+            'extra_expenses.*.description' => 'required_with:extra_expenses|string|max:255',
+            'extra_expenses.*.amount' => 'required_with:extra_expenses|numeric|min:0',
         ];
     }
 }

@@ -12,8 +12,8 @@ export default function Footer() {
         </p>
         <div className="flex items-center gap-4">
           <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800 border border-slate-200">
-            v1.2.0
-          </span>
+            v1.6.2
+           </span>
           <p className="text-xs text-muted-foreground">
             Sistema de Cotizaciones
           </p>

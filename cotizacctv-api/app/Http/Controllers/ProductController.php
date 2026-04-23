@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -41,6 +42,11 @@ class ProductController extends Controller
             $data = $request->validated();
             $suppliers = $data['suppliers'];
             unset($data['suppliers']);
+
+            if ($request->hasFile('image')) {
+                $path = $request->file('image')->store('products', 'public');
+                $data['image_path'] = $path;
+            }
 
             $product = Product::create($data);
             
@@ -87,6 +93,15 @@ class ProductController extends Controller
             $data = $request->validated();
             $suppliers = $data['suppliers'];
             unset($data['suppliers']);
+
+            if ($request->hasFile('image')) {
+                // Eliminar imagen anterior si existe
+                if ($product->image_path) {
+                    Storage::disk('public')->delete($product->image_path);
+                }
+                $path = $request->file('image')->store('products', 'public');
+                $data['image_path'] = $path;
+            }
 
             if (isset($data['description'])) {
                 $data['description'] = clean($data['description']);

@@ -18,9 +18,12 @@ class QuoteController extends Controller
      */
     public function index(): JsonResponse
     {
-        $quotes = Quote::with(['items.product' => function ($query) {
-            $query->withTrashed();
-        }])->latest()->get();
+        $quotes = Quote::with([
+            'items.product' => function ($query) {
+                $query->withTrashed();
+            },
+            'extraExpenses'
+        ])->latest()->get();
         return response()->json($quotes);
     }
 
@@ -76,6 +79,7 @@ class QuoteController extends Controller
             // 4. Persistir Cotización
             $quote = Quote::create([
                 'client_name' => $request->client_name,
+                'client_phone' => $request->client_phone,
                 'subtotal_materials' => $subtotalMaterials,
                 'margin_applied' => $marginApplied,
                 'freight_cost' => $freightCost,
@@ -87,7 +91,7 @@ class QuoteController extends Controller
                 'grand_total' => $grandTotal,
                 'installation_days' => $installationDays,
                 'distance_km' => round((float) ($request->distance_km ?? 0), 2),
-                'status' => 'draft',
+                'status' => 'pending',
                 'expires_at' => now()->addDays(15),
             ]);
 
@@ -96,9 +100,19 @@ class QuoteController extends Controller
                 $quote->items()->create($item);
             }
 
+            // 6. Persistir Gastos Extra
+            if ($request->has('extra_expenses')) {
+                foreach ($request->extra_expenses as $expense) {
+                    $quote->extraExpenses()->create([
+                        'description' => $expense['description'],
+                        'amount' => (float) $expense['amount']
+                    ]);
+                }
+            }
+
             return response()->json([
                 'message' => 'Cotización generada con éxito',
-                'data' => $quote->load('items')
+                'data' => $quote->load(['items', 'extraExpenses'])
             ], 201);
         });
     }
@@ -113,7 +127,8 @@ class QuoteController extends Controller
                 $query->withTrashed();
             },
             'items.product.category', 
-            'items.product.suppliers'
+            'items.product.suppliers',
+            'extraExpenses'
         ])->findOrFail($id);
         return response()->json($quote);
     }
@@ -163,6 +178,7 @@ class QuoteController extends Controller
             // 4. Actualizar Cotización
             $quote->update([
                 'client_name' => $request->client_name,
+                'client_phone' => $request->client_phone,
                 'subtotal_materials' => $subtotalMaterials,
                 'freight_cost' => $freightCost,
                 'installation_total' => $installationTotal,
@@ -179,10 +195,39 @@ class QuoteController extends Controller
                 $quote->items()->create($item);
             }
 
+            // 6. Reemplazar Gastos Extra
+            $quote->extraExpenses()->delete();
+            if ($request->has('extra_expenses')) {
+                foreach ($request->extra_expenses as $expense) {
+                    $quote->extraExpenses()->create([
+                        'description' => $expense['description'],
+                        'amount' => (float) $expense['amount']
+                    ]);
+                }
+            }
+
             return response()->json([
                 'message' => 'Cotización actualizada con éxito',
-                'data' => $quote->load('items')
+                'data' => $quote->load(['items', 'extraExpenses'])
             ]);
         });
+    }
+
+    /**
+     * Update the status of the specified quote.
+     */
+    public function updateStatus(\Illuminate\Http\Request $request, string $id): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|string|in:pending,accepted,rejected,completed'
+        ]);
+
+        $quote = Quote::findOrFail($id);
+        $quote->update(['status' => $request->status]);
+
+        return response()->json([
+            'message' => 'Estado actualizado con éxito',
+            'status' => $quote->status
+        ]);
     }
 }

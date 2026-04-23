@@ -3,7 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table"
 import { Product } from "@/types"
 import { Button } from "@/components/ui/button"
-import { Edit2, Trash, ArrowUpDown } from "lucide-react"
+import { Edit2, Trash, ArrowUpDown, Camera } from "lucide-react"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,6 +20,28 @@ export const getColumns = (
   onEdit: (product: Product) => void,
   onDelete: (id: number, name: string) => void
 ): ColumnDef<Product>[] => [
+  {
+    id: "thumbnail",
+    header: "Miniatura",
+    cell: ({ row }) => {
+      const product = row.original
+      return (
+        <div className="flex justify-center">
+          <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted/50 flex items-center justify-center">
+            {product.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name} 
+                className="h-full w-full object-contain"
+              />
+            ) : (
+              <Camera className="h-5 w-5 text-muted-foreground/50" />
+            )}
+          </div>
+        </div>
+      )
+    },
+  },
   {
     accessorKey: "name",
     header: ({ column }) => {

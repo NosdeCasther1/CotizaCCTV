@@ -1,13 +1,24 @@
 "use client";
 
 import Link from "next/link";
-import { Trash2, PackageSearch, GripVertical, Info } from "lucide-react";
+import { Trash2, PackageSearch, GripVertical, Info, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   DndContext,
   closestCenter,
@@ -92,6 +103,7 @@ export default function NewQuotePage() {
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+  const [isClearListDialogOpen, setIsClearListDialogOpen] = useState(false);
   
   // Ref para rastrear el descuento automático generado por cambios de precio en la tabla (v1.3.1)
   const lastAutoDiscountRef = useRef(0);
@@ -404,20 +416,32 @@ export default function NewQuotePage() {
               <div className="w-1 h-6 bg-blue-600 rounded-full" />
               <h2 className="text-lg font-semibold text-slate-800">Información General</h2>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 ml-1">Cliente</label>
-              <input
-                {...form.register("client_name")}
-                disabled={!!quoteResult}
-                suppressHydrationWarning={true}
-                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                placeholder="Nombre de la empresa o persona"
-              />
-              {form.formState.errors.client_name && (
-                <span className="text-red-500 text-xs mt-1 ml-1">
-                  {form.formState.errors.client_name.message}
-                </span>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 ml-1">Cliente</label>
+                <input
+                  {...form.register("client_name")}
+                  disabled={!!quoteResult}
+                  suppressHydrationWarning={true}
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Nombre de la empresa o persona"
+                />
+                {form.formState.errors.client_name && (
+                  <span className="text-red-500 text-xs mt-1 ml-1">
+                    {form.formState.errors.client_name.message}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 ml-1">Teléfono (WhatsApp)</label>
+                <input
+                  {...form.register("client_phone")}
+                  disabled={!!quoteResult}
+                  suppressHydrationWarning={true}
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Ej. +502 1234 5678"
+                />
+              </div>
             </div>
           </section>
 
@@ -516,6 +540,41 @@ export default function NewQuotePage() {
               <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
                 {fields.length} ítem{fields.length !== 1 ? "s" : ""}
               </span>
+              <AlertDialog open={isClearListDialogOpen} onOpenChange={setIsClearListDialogOpen}>
+                <AlertDialogTrigger render={
+                  <button
+                    type="button"
+                    disabled={!!quoteResult || fields.length === 0}
+                    className="ml-4 text-[10px] font-bold text-red-600 bg-white hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Limpiar Lista
+                  </button>
+                } />
+                <AlertDialogContent>
+                  <AlertDialogHeader className="flex flex-col items-center justify-center">
+                    <div className="rounded-full bg-red-100 p-3 mb-2">
+                      <AlertTriangle className="h-6 w-6 text-red-600" />
+                    </div>
+                    <AlertDialogTitle className="text-center">¿Confirmar Limpieza?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-center">
+                      Esta acción eliminará todos los equipos y materiales de la lista actual.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      variant="destructive"
+                      onClick={() => {
+                        form.setValue("items", []);
+                        setIsClearListDialogOpen(false);
+                      }}
+                    >
+                      Sí, vaciar lista
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
 
             {/* ── GLOBAL SEARCH BAR ── */}
@@ -619,17 +678,28 @@ export default function NewQuotePage() {
                                               <Info className="h-3 w-3 text-slate-400 group-hover/info:text-blue-500 transition-colors" />
                                             </span>
                                           </TooltipTrigger>
-                                          <TooltipContent side="right" className="max-w-xs bg-slate-900 text-slate-50 p-3 shadow-2xl border-none rounded-xl">
-                                            <div className="space-y-1.5">
-                                              <div className="flex items-center gap-1.5 border-b border-slate-700 pb-1 mb-1">
-                                                <Info className="h-3 w-3 text-blue-400" />
-                                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Especificaciones</p>
+                                          <TooltipContent side="right" className="max-w-sm bg-slate-900 text-slate-50 p-0 shadow-2xl border-none rounded-xl overflow-hidden">
+                                            <div className="flex gap-4">
+                                              {selectedProduct.image_url && (
+                                                <div className="w-24 h-24 bg-white shrink-0">
+                                                  <img 
+                                                    src={selectedProduct.image_url} 
+                                                    alt={selectedProduct.name} 
+                                                    className="w-full h-full object-contain p-1"
+                                                  />
+                                                </div>
+                                              )}
+                                              <div className="p-3 flex-1 min-w-[150px]">
+                                                <div className="flex items-center gap-1.5 border-b border-slate-700 pb-1 mb-1">
+                                                  <Info className="h-3 w-3 text-blue-400" />
+                                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Especificaciones</p>
+                                                </div>
+                                                <p className="text-[11px] leading-relaxed text-slate-200 line-clamp-6">
+                                                  {selectedProduct.description 
+                                                    ? selectedProduct.description.replace(/<[^>]*>/g, "") 
+                                                    : "Sin descripción técnica disponible."}
+                                                </p>
                                               </div>
-                                              <p className="text-[11px] leading-relaxed text-slate-200">
-                                                {selectedProduct.description 
-                                                  ? selectedProduct.description.replace(/<[^>]*>/g, "") 
-                                                  : "Sin descripción técnica disponible."}
-                                              </p>
                                             </div>
                                           </TooltipContent>
                                         </Tooltip>
