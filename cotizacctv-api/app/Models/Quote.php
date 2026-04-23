@@ -19,7 +19,9 @@ class Quote extends Model
         'status',
         'expires_at',
         'installation_days',
-        'distance_km'
+        'distance_km',
+        'discount_amount',
+        'discount_type'
     ];
 
     // Casteo estricto para proteger la integridad financiera del ERP
@@ -34,6 +36,7 @@ class Quote extends Model
         'expires_at'         => 'datetime',
         'installation_days'  => 'integer',
         'distance_km'        => 'decimal:2',
+        'discount_amount'    => 'decimal:2',
     ];
 
     public function items(): HasMany

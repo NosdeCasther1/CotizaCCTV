@@ -108,6 +108,18 @@
         .product-description li {
             margin-bottom: 2px;
         }
+        .category-header {
+            background-color: #f1f5f9;
+            font-weight: bold;
+            color: {{ $settings['primary_color'] ?? '#1a3a5a' }};
+        }
+        .category-header td {
+            padding: 8px 10px !important;
+            border-bottom: 2px solid #e2e8f0 !important;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
         .text-muted {
             color: #777;
         }
@@ -165,26 +177,30 @@
                         ? (1 + ($quote->margin_applied / $quote->subtotal_materials)) 
                         : 1;
                 @endphp
-                @foreach($quote->items as $item)
-                    @php
-                        $unitPriceWithMargin = $item->frozen_unit_cost * $marginFactor;
-                        $itemTotal = $unitPriceWithMargin * $item->quantity;
-                    @endphp
-                    <tr>
-                        <td>{{ $item->product->sku ?? 'N/A' }}</td>
-                        <td>
-                            <strong>{{ $item->product ? $item->product->name : 'Producto Eliminado' }}</strong><br>
-                            <small class="text-muted">{{ $item->product && $item->product->category ? $item->product->category->name : 'Sin categoría' }}</small>
-                            @if($item->product && $item->product->description)
-                                <div class="product-description">
-                                    {!! $item->product->description !!}
-                                </div>
-                            @endif
-                        </td>
-                        <td class="text-right">{{ $item->quantity }}</td>
-                        <td class="text-right">Q {{ number_format($unitPriceWithMargin, 0) }}</td>
-                        <td class="text-right">Q {{ number_format($itemTotal, 0) }}</td>
+                @foreach($itemsByCategory as $categoryName => $items)
+                    <tr class="category-header">
+                        <td colspan="5">{{ $categoryName }}</td>
                     </tr>
+                    @foreach($items as $item)
+                        @php
+                            $unitPriceWithMargin = $item->frozen_unit_cost * $marginFactor;
+                            $itemTotal = $unitPriceWithMargin * $item->quantity;
+                        @endphp
+                        <tr>
+                            <td>{{ $item->product->sku ?? 'N/A' }}</td>
+                            <td>
+                                <strong>{{ $item->product ? $item->product->name : 'Producto Eliminado' }}</strong>
+                                @if($item->product && $item->product->description)
+                                    <div class="product-description">
+                                        {!! $item->product->description !!}
+                                    </div>
+                                @endif
+                            </td>
+                            <td class="text-right">{{ $item->quantity }}</td>
+                            <td class="text-right">Q {{ number_format($unitPriceWithMargin, 0) }}</td>
+                            <td class="text-right">Q {{ number_format($itemTotal, 0) }}</td>
+                        </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
@@ -203,6 +219,24 @@
                     <td class="label">Logística y Otros:</td>
                     <td class="value">Q {{ number_format($quote->freight_cost + $quote->gasoline_cost + $quote->per_diem_cost, 0) }}</td>
                 </tr>
+                @php
+                    $baseTotalBeforeDiscount = ($quote->subtotal_materials + $quote->margin_applied) + 
+                                               $quote->installation_total + 
+                                               ($quote->freight_cost + $quote->gasoline_cost + $quote->per_diem_cost);
+                    
+                    $discountDisplay = 0;
+                    if ($quote->discount_amount > 0) {
+                        $discountDisplay = $quote->discount_type === 'percentage'
+                            ? round($baseTotalBeforeDiscount * ($quote->discount_amount / 100), 0)
+                            : $quote->discount_amount;
+                    }
+                @endphp
+                @if($discountDisplay > 0)
+                <tr>
+                    <td class="label" style="color: #c62828;">Descuento Especial:</td>
+                    <td class="value" style="color: #c62828; font-weight: bold;">- Q {{ number_format($discountDisplay, 0) }}</td>
+                </tr>
+                @endif
                 <tr class="grand-total-row">
                     <td class="label">GRAN TOTAL:</td>
                     <td class="value">Q {{ number_format($quote->grand_total, 0) }}</td>

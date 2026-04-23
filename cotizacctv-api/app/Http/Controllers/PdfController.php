@@ -22,8 +22,13 @@ class PdfController extends Controller
             },
             'items.product.category'
         ]);
+
+        $itemsByCategory = $quote->items->groupBy(function($item) {
+            return $item->product->category->name ?? 'Equipos y Materiales';
+        });
+
         $settings = SystemSetting::pluck('value', 'key')->toArray();
-        $pdf = Pdf::loadView('pdf.quote', compact('quote', 'settings'));
+        $pdf = Pdf::loadView('pdf.quote', compact('quote', 'settings', 'itemsByCategory'));
 
         return $pdf->download("Cotizacion_{$quote->id}.pdf");
     }

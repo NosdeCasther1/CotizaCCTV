@@ -74,9 +74,11 @@ export const getColumns = (
     cell: ({ row }) => {
       const brandName = row.original.brand?.name
       return (
-        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-800 border border-slate-200">
-          {brandName || "N/A"}
-        </span>
+        <div className="flex">
+          <span className="inline-flex items-center rounded-md bg-slate-50 px-2 py-1 text-[11px] font-bold text-slate-600 ring-1 ring-inset ring-slate-500/10 uppercase tracking-tight">
+            {brandName || "N/A"}
+          </span>
+        </div>
       )
     },
   },
@@ -87,9 +89,11 @@ export const getColumns = (
     cell: ({ row }) => {
       const categoryName = row.original.category?.name
       return (
-        <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
-          {categoryName || "Sin categoría"}
-        </span>
+        <div className="flex">
+          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-[11px] font-bold text-blue-700 ring-1 ring-inset ring-blue-700/10 uppercase tracking-tight">
+            {categoryName || "Sin categoría"}
+          </span>
+        </div>
       )
     },
   },

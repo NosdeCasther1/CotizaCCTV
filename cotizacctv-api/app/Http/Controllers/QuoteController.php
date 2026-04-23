@@ -63,7 +63,15 @@ class QuoteController extends Controller
             $gasolineCost = 0;
             $perDiemCost = 0;
 
-            $grandTotal = round($subtotalMaterials + $freightCost + $installationTotal, 0);
+            $discountAmount = (float) ($request->discount_amount ?? 0);
+            $discountType = $request->discount_type ?? 'fixed';
+
+            $baseTotal = $subtotalMaterials + $freightCost + $installationTotal;
+            $finalDiscount = $discountType === 'percentage' 
+                ? round($baseTotal * ($discountAmount / 100), 0)
+                : round($discountAmount, 0);
+
+            $grandTotal = max(0, round($baseTotal - $finalDiscount, 0));
 
             // 4. Persistir Cotización
             $quote = Quote::create([
@@ -74,6 +82,8 @@ class QuoteController extends Controller
                 'gasoline_cost' => $gasolineCost,
                 'per_diem_cost' => $perDiemCost,
                 'installation_total' => $installationTotal,
+                'discount_amount' => $discountAmount,
+                'discount_type' => $discountType,
                 'grand_total' => $grandTotal,
                 'installation_days' => $installationDays,
                 'distance_km' => round((float) ($request->distance_km ?? 0), 2),
@@ -140,7 +150,15 @@ class QuoteController extends Controller
             $installationTotal = round((float) ($request->installation_total ?? 0), 0);
             $installationDays = (int) ($request->installation_days ?? 1);
 
-            $grandTotal = round($subtotalMaterials + $freightCost + $installationTotal, 0);
+            $discountAmount = (float) ($request->discount_amount ?? 0);
+            $discountType = $request->discount_type ?? 'fixed';
+
+            $baseTotal = $subtotalMaterials + $freightCost + $installationTotal;
+            $finalDiscount = $discountType === 'percentage' 
+                ? round($baseTotal * ($discountAmount / 100), 0)
+                : round($discountAmount, 0);
+
+            $grandTotal = max(0, round($baseTotal - $finalDiscount, 0));
 
             // 4. Actualizar Cotización
             $quote->update([
@@ -148,6 +166,8 @@ class QuoteController extends Controller
                 'subtotal_materials' => $subtotalMaterials,
                 'freight_cost' => $freightCost,
                 'installation_total' => $installationTotal,
+                'discount_amount' => $discountAmount,
+                'discount_type' => $discountType,
                 'grand_total' => $grandTotal,
                 'installation_days' => $installationDays,
                 'distance_km' => round((float) ($request->distance_km ?? 0), 2),

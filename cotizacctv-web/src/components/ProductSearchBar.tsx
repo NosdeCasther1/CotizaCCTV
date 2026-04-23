@@ -38,8 +38,23 @@ export function ProductSearchBar({
   const filteredProducts = React.useMemo(() => {
     const q = normalize(debouncedSearchTerm);
     if (!q) return products.slice(0, 50);
+    
     return products
-      .filter((p) => normalize(p.name).includes(q) || normalize(p.sku).includes(q))
+      .filter((p) => {
+        const name = normalize(p.name || "");
+        const sku = normalize(p.sku || "");
+        const desc = normalize(p.description || "");
+        const brand = normalize(p.brand?.name || "");
+        const category = normalize(p.category?.name || "");
+        
+        return (
+          name.includes(q) || 
+          sku.includes(q) || 
+          desc.includes(q) || 
+          brand.includes(q) || 
+          category.includes(q)
+        );
+      })
       .slice(0, 50);
   }, [products, debouncedSearchTerm]);
 

@@ -233,6 +233,20 @@ export default function QuoteDetailsPage() {
                   <span className="font-bold text-emerald-400 text-lg">+ Q {Number(quote.margin_applied).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                 </div>
                 
+                {Number(quote.discount_amount) > 0 && (
+                  <div className="flex justify-between items-center bg-red-500/10 p-4 rounded-2xl border border-red-500/20">
+                    <span className="text-red-100 font-medium">Descuento Especial</span>
+                    <span className="font-bold text-red-400 text-lg">
+                      - Q {(() => {
+                        const base = Number(quote.subtotal_materials) + Number(quote.margin_applied) + Number(quote.installation_total) + Number(quote.freight_cost) + Number(quote.gasoline_cost) + Number(quote.per_diem_cost);
+                        return quote.discount_type === 'percentage' 
+                          ? Math.round(base * (Number(quote.discount_amount) / 100)).toLocaleString(undefined, { maximumFractionDigits: 0 })
+                          : Number(quote.discount_amount).toLocaleString(undefined, { maximumFractionDigits: 0 });
+                      })()}
+                    </span>
+                  </div>
+                )}
+                
                 <div className="space-y-4 pt-4 px-2">
                   <div className="flex justify-between items-center text-sm">
                     <span className="text-slate-400 flex items-center gap-2">

@@ -6,6 +6,8 @@ export const quoteSchema = z.object({
   installation_total: z.coerce.number().min(0, "La mano de obra no puede ser negativa."),
   distance_km: z.coerce.number().min(0, "La distancia no puede ser negativa."),
   installation_days: z.coerce.number().min(1, "El proyecto debe durar al menos 1 día."),
+  discount_amount: z.coerce.number().min(0, "El descuento no puede ser negativo.").default(0),
+  discount_type: z.enum(["fixed", "percentage"]).default("fixed"),
   items: z.array(
     z.object({
       product_id: z.coerce.number().positive("Seleccione un producto válido."),

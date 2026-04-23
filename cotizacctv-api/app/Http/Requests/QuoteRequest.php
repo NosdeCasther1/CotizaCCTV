@@ -31,6 +31,8 @@ class QuoteRequest extends FormRequest
             'freight_cost' => 'nullable|numeric|min:0',
             'installation_total' => 'nullable|numeric|min:0',
             'installation_days' => 'nullable|integer|min:1',
+            'discount_amount' => 'nullable|numeric|min:0',
+            'discount_type' => 'nullable|string|in:fixed,percentage',
         ];
     }
 }

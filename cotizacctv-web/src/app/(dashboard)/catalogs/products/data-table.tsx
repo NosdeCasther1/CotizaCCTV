@@ -51,6 +51,10 @@ export function DataTable<TData, TValue>({
   })
   const [globalFilter, setGlobalFilter] = React.useState("")
 
+  // Helper for accent-insensitive search
+  const normalize = (str: string) => 
+    str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
   const table = useReactTable({
     data,
     columns,
@@ -67,8 +71,27 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       globalFilter,
     },
-    // Adding global filter logic across multiple columns (name, sku, brand, category, etc.)
-    globalFilterFn: "includesString",
+    // Ultra-fuzzy search (accent insensitive)
+    globalFilterFn: (row, columnId, filterValue) => {
+      const search = normalize(filterValue);
+      if (!search) return true;
+
+      // Extract all searchable values from the row (cast to any for flexibility)
+      const item = row.original as any;
+      const name = normalize(item.name || "");
+      const sku = normalize(item.sku || "");
+      const desc = normalize(item.description || "");
+      const brand = normalize(item.brand?.name || "");
+      const category = normalize(item.category?.name || "");
+
+      return (
+        name.includes(search) ||
+        sku.includes(search) ||
+        desc.includes(search) ||
+        brand.includes(search) ||
+        category.includes(search)
+      );
+    },
   })
 
   return (

@@ -98,6 +98,8 @@ export default function EditQuotePage() {
       installation_total: 0,
       distance_km: 0,
       installation_days: 1,
+      discount_amount: 0,
+      discount_type: "fixed",
       items: [],
     },
     mode: "onChange",
@@ -129,6 +131,8 @@ export default function EditQuotePage() {
           installation_total: Number(quoteData.installation_total),
           distance_km: Number(quoteData.distance_km || 0),
           installation_days: Number(quoteData.installation_days),
+          discount_amount: Number(quoteData.discount_amount || 0),
+          discount_type: quoteData.discount_type || "fixed",
           items: formattedItems,
         });
       } catch (error) {
@@ -192,6 +196,10 @@ export default function EditQuotePage() {
     useWatch({ control: form.control, name: "freight_cost" }) || 0;
   const watchedInstallation =
     useWatch({ control: form.control, name: "installation_total" }) || 0;
+  const watchedDiscountAmount =
+    useWatch({ control: form.control, name: "discount_amount" }) || 0;
+  const watchedDiscountType =
+    useWatch({ control: form.control, name: "discount_type" }) || "fixed";
 
   const liveTotalMaterials = useMemo(() => {
     return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
@@ -203,10 +211,20 @@ export default function EditQuotePage() {
     }, 0);
   }, [watchedItems, availableProducts]);
 
-  const grandTotal =
+  const liveBaseTotal =
     liveTotalMaterials +
     Number(watchedFreight) +
     Number(watchedInstallation);
+
+  const liveDiscountValue = useMemo(() => {
+    const amount = Number(watchedDiscountAmount);
+    if (watchedDiscountType === "percentage") {
+      return Math.round(liveBaseTotal * (amount / 100));
+    }
+    return amount;
+  }, [liveBaseTotal, watchedDiscountAmount, watchedDiscountType]);
+
+  const grandTotal = Math.max(0, liveBaseTotal - liveDiscountValue);
 
   // ── DnD sensors ─────────────────────────────────────────────────────────
   const sensors = useSensors(
@@ -369,6 +387,42 @@ export default function EditQuotePage() {
                   {...form.register("installation_total")}
                   className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 />
+              </div>
+            </div>
+          </section>
+
+          {/* Descuentos & Ajustes */}
+          <section className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-1 h-6 bg-red-600 rounded-full" />
+              <h2 className="text-lg font-semibold text-slate-800">Descuentos &amp; Ajustes</h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 ml-1">Tipo de Descuento</label>
+                <select
+                  {...form.register("discount_type")}
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                >
+                  <option value="fixed">Monto Fijo (Q)</option>
+                  <option value="percentage">Porcentaje (%)</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 ml-1">
+                  {watchedDiscountType === "percentage" ? "Porcentaje (%)" : "Descuento (Q)"}
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                    {watchedDiscountType === "percentage" ? "%" : "Q"}
+                  </span>
+                  <input
+                    type="number"
+                    {...form.register("discount_amount")}
+                    className="w-full rounded-xl border border-slate-200 p-3 pl-8 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    placeholder="0.00"
+                  />
+                </div>
               </div>
             </div>
           </section>
@@ -608,6 +662,14 @@ export default function EditQuotePage() {
                       Q {fmt(Number(watchedFreight))}
                     </span>
                   </div>
+                  {liveDiscountValue > 0 && (
+                    <div className="flex justify-between items-center text-red-600 bg-red-50 px-2 py-1 rounded-lg">
+                      <span className="font-medium">Descuento Especial</span>
+                      <span className="font-bold tabular-nums">
+                        - Q {fmt(liveDiscountValue)}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <Separator className="bg-slate-100" />

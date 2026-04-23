@@ -79,6 +79,8 @@ export interface Quote {
   status: 'draft' | 'sent' | 'approved' | 'rejected';
   installation_days: number;
   distance_km: number;
+  discount_amount: number;
+  discount_type: 'fixed' | 'percentage';
   expires_at: string;
   items?: QuoteItem[];
   created_at?: string;
