@@ -110,7 +110,7 @@ export default function QuoteDetailsPage() {
         </div>
         <div className="flex flex-wrap gap-3 z-10 w-full md:w-auto">
           <button 
-            onClick={() => router.push('/quotes/new')}
+            onClick={() => router.push('/quotes')}
             className="flex-1 md:flex-none px-6 py-3 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all active:scale-95 text-center"
           >
             Volver

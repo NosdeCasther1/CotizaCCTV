@@ -37,7 +37,19 @@ class UpdateProductRequest extends FormRequest
             ],
             'category_id' => 'required|exists:categories,id',
             'brand_id' => 'nullable|exists:brands,id',
-            'margin_percentage' => 'nullable|numeric|min:0|max:100',
+            'utility_type' => 'nullable|string|in:percentage,fixed_amount',
+            'margin_percentage' => [
+                'nullable',
+                'numeric',
+                'min:0',
+                function ($attribute, $value, $fail) {
+                    if ($this->utility_type === 'percentage' && $value >= 100) {
+                        $fail('El margen porcentual debe ser menor a 100.');
+                    }
+                },
+            ],
+            'purchase_price' => 'nullable|numeric|min:0',
+            'tax_rate' => 'nullable|numeric|min:0|max:100',
             'suppliers' => 'required|array|min:1',
             'suppliers.*.supplier_id' => 'required|exists:suppliers,id',
             'suppliers.*.cost' => 'required|numeric|min:0',

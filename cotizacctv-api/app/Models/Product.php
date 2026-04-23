@@ -16,11 +16,17 @@ class Product extends Model
         'sku', 
         'name', 
         'description',
-        'margin_percentage'
+        'margin_percentage',
+        'utility_type',
+        'purchase_price',
+        'tax_rate'
     ];
 
     protected $casts = [
         'margin_percentage' => 'decimal:2',
+        'purchase_price' => 'decimal:2',
+        'tax_rate' => 'decimal:2',
+        'utility_type' => 'string',
     ];
 
     protected $appends = [
@@ -65,25 +71,31 @@ class Product extends Model
     }
 
     /**
-     * Formula: Cost / (1 - (Margin / 100))
-     * Prioritizes default supplier, fallbacks to max cost for safety.
+     * Formula: 
+     * If percentage: Cost / (1 - (Margin / 100))
+     * If fixed_amount: Cost + Margin
      */
     public function getCalculatedSalePriceAttribute(): float
     {
-        if ($this->suppliers->isEmpty()) {
+        // 1. Use purchase_price if available, otherwise fallback to suppliers
+        if ($this->purchase_price !== null) {
+            $baseCost = (float) $this->purchase_price;
+        } elseif ($this->suppliers->isNotEmpty()) {
+            // Find default supplier or use max cost
+            $defaultSupplier = $this->suppliers->firstWhere('pivot.is_default', true);
+            $baseCost = $defaultSupplier 
+                ? (float) $defaultSupplier->pivot->cost 
+                : (float) $this->suppliers->max('pivot.cost');
+        } else {
             return 0.0;
         }
-
-        // 1. Find default supplier
-        $defaultSupplier = $this->suppliers->firstWhere('pivot.is_default', true);
-
-        // 2. Use default cost or fallback to MAX cost (protection)
-        $baseCost = $defaultSupplier 
-            ? (float) $defaultSupplier->pivot->cost 
-            : (float) $this->suppliers->max('pivot.cost');
         
         $margin = $this->getActiveMarginAttribute();
         
+        if ($this->utility_type === 'fixed_amount') {
+            return round($baseCost + $margin, 0);
+        }
+
         if ($margin >= 100) {
             return $baseCost; // Prevent division by zero or negative
         }

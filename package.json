@@ -1,8 +1,0 @@
-{
-  "name": "cotizacctv-monorepo",
-  "private": true,
-  "workspaces": [
-    "cotizacctv-web",
-    "cotizacctv-api"
-  ]
-}

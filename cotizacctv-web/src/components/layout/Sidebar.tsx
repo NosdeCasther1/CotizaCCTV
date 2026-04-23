@@ -13,7 +13,8 @@ import {
   LayoutDashboard,
   Package,
   ShieldCheck,
-  FileText
+  FileText,
+  BarChart3
 } from 'lucide-react';
 
 // Centralizamos las rutas para escalabilidad y control de roles a futuro
@@ -25,6 +26,7 @@ const navItems = [
   { name: 'Marcas', href: '/catalogs/brands', icon: ShieldCheck },
   { name: 'Categorías', href: '/catalogs/categories', icon: Tags },
   { name: 'Proveedores', href: '/catalogs/suppliers', icon: Truck },
+  { name: 'Mis Ganancias', href: '/reports/profits', icon: BarChart3 },
   { name: 'Configuración', href: '/settings', icon: Settings },
 ];
 

@@ -266,8 +266,8 @@ export default function DashboardPage() {
               <h2 className="text-xl font-bold">Actividad Semanal</h2>
             </div>
             
-            <div className="p-6 flex-1 flex flex-col justify-center min-h-[300px]">
-              <div className="w-full h-full min-h-[250px]">
+            <div className="p-6 flex-1 flex flex-col justify-center">
+              <div className="w-full h-[350px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={mockChartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />

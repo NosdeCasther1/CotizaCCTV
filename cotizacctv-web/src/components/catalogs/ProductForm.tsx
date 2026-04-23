@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import { useForm, Controller, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { Plus, Trash2, Loader2, Package, Hash, DollarSign, Tag, Truck, Percent, Star, AlignLeft, ShieldCheck, Check, ChevronsUpDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Plus, Trash2, Loader2, Package, Hash, DollarSign, Tag, Truck, Percent, Star, AlignLeft, ShieldCheck, Check, ChevronsUpDown, Coins } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DialogFooter } from "@/components/ui/dialog";
@@ -33,6 +33,13 @@ import { RichTextEditor } from "@/components/ui/RichTextEditor";
 import { QuickCreateCategory } from "@/components/modals/QuickCreateCategory";
 import { QuickCreateBrand } from "@/components/modals/QuickCreateBrand";
 import { QuickCreateSupplier } from "@/components/modals/QuickCreateSupplier";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
 
 interface ComboboxFieldProps {
   value: string;
@@ -63,22 +70,22 @@ function ComboboxField({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          disabled={disabled}
-          className="w-full justify-between font-normal text-left px-3 bg-background"
-        >
-          <div className="flex items-center gap-2 truncate whitespace-nowrap overflow-hidden">
-            {icon}
-            <span className="truncate">
-              {selectedOption ? selectedOption.name : placeholder}
-            </span>
-          </div>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+      <PopoverTrigger
+        role="combobox"
+        aria-expanded={open}
+        disabled={disabled}
+        className={cn(
+          buttonVariants({ variant: "outline" }),
+          "w-full justify-between font-normal text-left px-3 bg-background"
+        )}
+      >
+        <div className="flex items-center gap-2 truncate whitespace-nowrap overflow-hidden">
+          {icon}
+          <span className="truncate">
+            {selectedOption ? selectedOption.name : placeholder}
+          </span>
+        </div>
+        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
         <Command>
@@ -130,7 +137,14 @@ const productSchema = z.object({
   sku: z.string().min(1, "El SKU es requerido"),
   category_id: z.string().min(1, "La categoría es requerida"),
   brand_id: z.string().optional().nullable(),
+  utility_type: z.enum(['percentage', 'fixed_amount']).default('percentage'),
   margin_percentage: z.string()
+    .refine((val) => val === "" || !isNaN(Number(val)), { message: "Debe ser un número" })
+    .optional(),
+  purchase_price: z.string()
+    .refine((val) => val === "" || !isNaN(Number(val)), { message: "Debe ser un número" })
+    .optional(),
+  tax_rate: z.string()
     .refine((val) => val === "" || !isNaN(Number(val)), { message: "Debe ser un número" })
     .optional(),
   suppliers: z.array(z.object({
@@ -147,7 +161,10 @@ type ProductFormValues = {
   sku: string;
   category_id: string;
   brand_id?: string | null;
+  utility_type: 'percentage' | 'fixed_amount';
   margin_percentage: string;
+  purchase_price: string;
+  tax_rate: string;
   suppliers: {
     supplier_id: string;
     cost: string;
@@ -184,7 +201,10 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       sku: product?.sku || "",
       category_id: product?.category_id?.toString() || "",
       brand_id: product?.brand_id?.toString() || "",
+      utility_type: product?.utility_type || "percentage",
       margin_percentage: product?.margin_percentage?.toString() || "",
+      purchase_price: product?.purchase_price?.toString() || "",
+      tax_rate: product?.tax_rate?.toString() || "0",
       suppliers: product?.suppliers && product.suppliers.length > 0 
         ? product.suppliers.map(s => ({
             supplier_id: s.id.toString(),
@@ -257,6 +277,8 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         ...values,
         brand_id: values.brand_id === "" ? null : Number(values.brand_id),
         margin_percentage: values.margin_percentage === "" ? null : Number(values.margin_percentage),
+        purchase_price: values.purchase_price === "" ? null : Number(values.purchase_price),
+        tax_rate: values.tax_rate === "" ? 0 : Number(values.tax_rate),
         suppliers: values.suppliers.map(s => ({
           supplier_id: Number(s.supplier_id),
           cost: Number(s.cost),
@@ -312,23 +334,118 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="margin_percentage">Margen Real (%)</Label>
-          <div className="relative">
-            <Percent className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="margin_percentage"
-              placeholder="Heredado"
-              className="pl-8"
-              {...register("margin_percentage")}
-              disabled={isSubmitting}
+          <Label htmlFor="margin_percentage">Utilidad / Margen</Label>
+          <div className="flex gap-2">
+            <Controller
+              name="utility_type"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="percentage">Porcentaje (%)</SelectItem>
+                    <SelectItem value="fixed_amount">Monto Fijo (Q)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             />
+            <div className="relative flex-1">
+              {watch("utility_type") === 'percentage' ? (
+                <Percent className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              ) : (
+                <Coins className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              )}
+              <Input
+                id="margin_percentage"
+                placeholder={watch("utility_type") === 'percentage' ? "Heredado" : "0.00"}
+                className="pl-8"
+                {...register("margin_percentage")}
+                disabled={isSubmitting}
+              />
+            </div>
           </div>
-          <p className="text-[10px] text-muted-foreground">Vacio = hereda de categoría o global</p>
+          <div className="flex justify-between items-center px-1">
+             <p className="text-[10px] text-muted-foreground">
+               {watch("utility_type") === 'percentage' 
+                 ? "Vacio = hereda de categoría o global" 
+                 : "Monto exacto a ganar sobre el costo"}
+             </p>
+             {watch("utility_type") === 'percentage' && (
+               <Button 
+                 type="button" 
+                 variant="ghost" 
+                 size="sm" 
+                 className="h-5 text-[10px] text-blue-600 hover:text-blue-700 p-0"
+                 onClick={() => setValue("margin_percentage", "30")}
+               >
+                 Usar 30%
+               </Button>
+             )}
+          </div>
           {errors.margin_percentage && (
             <p className="text-sm text-destructive">{errors.margin_percentage.message as React.ReactNode}</p>
           )}
         </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <Label htmlFor="purchase_price">Precio de Compra (GTQ)</Label>
+          <div className="relative">
+            <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="purchase_price"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              className="pl-8"
+              {...register("purchase_price")}
+              disabled={isSubmitting}
+            />
+          </div>
+          {errors.purchase_price && (
+            <p className="text-sm text-destructive">{errors.purchase_price.message as React.ReactNode}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="tax_rate">Impuesto / IVA (%)</Label>
+          <div className="relative">
+            <Percent className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              id="tax_rate"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              className="pl-8"
+              {...register("tax_rate")}
+              disabled={isSubmitting}
+            />
+          </div>
+          {errors.tax_rate && (
+            <p className="text-sm text-destructive">{errors.tax_rate.message as React.ReactNode}</p>
+          )}
+        </div>
+      </div>
+
+      {watch("purchase_price") && (
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
+          <div>
+            <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Sugerencia de Negocio</p>
+            <p className="text-sm text-blue-900 font-medium">Precio de Venta Sugerido (30% Margen)</p>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-black text-blue-600">
+              Q {watch("utility_type") === 'percentage' 
+                ? (Number(watch("purchase_price")) / 0.7).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                : (Number(watch("purchase_price")) + Number(watch("margin_percentage") || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              }
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="name">Nombre del Producto</Label>

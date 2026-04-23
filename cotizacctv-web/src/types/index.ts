@@ -43,6 +43,9 @@ export interface Product {
   name: string;
   description?: string;
   margin_percentage: number | null;
+  utility_type?: 'percentage' | 'fixed_amount';
+  purchase_price: number | null;
+  tax_rate: number | null;
   active_margin: number;
   calculated_sale_price: number;
   suppliers?: ProductSupplier[];

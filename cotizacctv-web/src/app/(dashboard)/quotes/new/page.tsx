@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Trash2, PackageSearch, GripVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   closestCenter,
@@ -188,13 +189,24 @@ export default function NewQuotePage() {
 
   const liveTotalMaterials = useMemo(() => {
     return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
+      if (!item || !item.product_id) return acc;
+      return acc + Math.round((item.unit_price || 0) * (item.quantity || 0));
+    }, 0);
+  }, [watchedItems]);
+
+  const liveTotalPurchasePrice = useMemo(() => {
+    return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
       if (!item) return acc;
       const product = availableProducts.find((p) => p.id === item.product_id);
       return product
-        ? acc + Math.round(product.calculated_sale_price * (item.quantity || 0))
+        ? acc + Math.round((product.purchase_price || 0) * (item.quantity || 0))
         : acc;
     }, 0);
   }, [watchedItems, availableProducts]);
+
+  const liveEstimatedProfit = useMemo(() => {
+    return liveTotalMaterials - liveTotalPurchasePrice;
+  }, [liveTotalMaterials, liveTotalPurchasePrice]);
 
   const grandTotal =
     liveTotalMaterials +
@@ -298,6 +310,7 @@ export default function NewQuotePage() {
               <input
                 {...form.register("client_name")}
                 disabled={!!quoteResult}
+                suppressHydrationWarning={true}
                 className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 placeholder="Nombre de la empresa o persona"
               />
@@ -456,13 +469,35 @@ export default function NewQuotePage() {
                                   {/* Producto */}
                                   <td className="px-3 py-1.5">
                                     {selectedProduct ? (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
-                                          {selectedProduct.sku}
-                                        </span>
-                                        <span className="text-slate-800 font-medium leading-tight">
-                                          {selectedProduct.name}
-                                        </span>
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
+                                            {selectedProduct.sku}
+                                          </span>
+                                          <span className="text-slate-800 font-medium leading-tight">
+                                            {selectedProduct.name}
+                                          </span>
+                                        </div>
+                                        {/* Feedback de Utilidad */}
+                                        <div className="mt-1 flex items-center gap-2">
+                                          {(() => {
+                                            const cost = Number(selectedProduct.purchase_price) || 0;
+                                            const price = currentItem?.unit_price || 0;
+                                            const utility = price - cost;
+                                            const utilityPercent = price > 0 ? (utility / price) * 100 : -100;
+                                            const isLow = utilityPercent < 5;
+                                            
+                                            return (
+                                              <span className={cn(
+                                                "text-[10px] font-medium transition-colors",
+                                                isLow ? "text-red-500 font-bold" : "text-slate-400"
+                                              )}>
+                                                Costo: Q{cost.toFixed(2)} | Utilidad: Q{utility.toFixed(2)} ({utilityPercent.toFixed(1)}%)
+                                                {isLow && " ⚠️ Margen Bajo"}
+                                              </span>
+                                            );
+                                          })()}
+                                        </div>
                                       </div>
                                     ) : (
                                       <span className="text-slate-400 italic text-xs">
@@ -486,15 +521,24 @@ export default function NewQuotePage() {
 
                                   {/* P. Unit */}
                                   <td className="px-3 py-1.5 text-right">
-                                    <span className="text-slate-500 font-medium tabular-nums">
-                                      Q {fmt(unitPrice)}
-                                    </span>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <span className="text-slate-400 text-xs font-semibold">Q</span>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        {...form.register(`items.${index}.unit_price`, {
+                                          valueAsNumber: true,
+                                        })}
+                                        disabled={!!quoteResult}
+                                        className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-right text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50"
+                                      />
+                                    </div>
                                   </td>
 
                                   {/* Subtotal */}
                                   <td className="px-4 py-1.5 text-right">
                                     <span className="text-emerald-700 font-bold tabular-nums">
-                                      Q {fmt(subtotal)}
+                                      Q {fmt(Math.round((currentItem?.unit_price || 0) * (currentItem?.quantity || 0)))}
                                     </span>
                                   </td>
 
@@ -597,6 +641,20 @@ export default function NewQuotePage() {
                       Q {fmt(Number(watchedFreight))}
                     </span>
                   </div>
+                </div>
+
+                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Utilidad Estimada (Equipos)</span>
+                    <span className="text-emerald-700 font-bold text-xs">+ Q {fmt(liveEstimatedProfit)}</span>
+                  </div>
+                  <div className="w-full bg-emerald-200 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${Math.min(100, (liveEstimatedProfit / (liveTotalMaterials || 1)) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-[9px] text-emerald-600 mt-1 font-medium italic">* Solo para vista interna del usuario</p>
                 </div>
 
                 <Separator className="bg-slate-100" />

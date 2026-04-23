@@ -38,7 +38,7 @@ class QuoteController extends Controller
             // Se confía en el precio unitario calculado que viene del catálogo (Product->calculated_sale_price)
             foreach ($request->items as $item) {
                 $product = Product::withTrashed()->findOrFail($item['product_id']);
-                $price = (float) $product->calculated_sale_price;
+                $price = (float) ($item['unit_price'] ?? $product->calculated_sale_price);
                 $quantity = (int) $item['quantity'];
                 
                 $subtotalMaterials += round($price * $quantity, 0);
@@ -123,7 +123,7 @@ class QuoteController extends Controller
             // 2. Procesar ítems (Materiales)
             foreach ($request->items as $item) {
                 $product = Product::withTrashed()->findOrFail($item['product_id']);
-                $price = (float) $product->calculated_sale_price;
+                $price = (float) ($item['unit_price'] ?? $product->calculated_sale_price);
                 $quantity = (int) $item['quantity'];
                 
                 $subtotalMaterials += round($price * $quantity, 0);

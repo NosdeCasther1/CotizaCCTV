@@ -27,6 +27,7 @@ class QuoteRequest extends FormRequest
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|integer|min:1',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
             'freight_cost' => 'nullable|numeric|min:0',
             'installation_total' => 'nullable|numeric|min:0',
             'installation_days' => 'nullable|integer|min:1',
