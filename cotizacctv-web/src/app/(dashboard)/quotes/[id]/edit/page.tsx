@@ -2,7 +2,24 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { Trash2, PackageSearch, GripVertical, Pencil, ArrowLeft, Loader2, Save } from "lucide-react";
+import { Trash2, PackageSearch, GripVertical, Pencil, ArrowLeft, Loader2, Save, Info, AlertTriangle } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import {
   DndContext,
   closestCenter,
@@ -24,13 +41,14 @@ import {
   useForm,
   useFieldArray,
   useWatch,
+  Controller,
   Resolver,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { quoteSchema, QuoteFormValues } from "@/lib/validations/quote";
 import { getQuoteById, updateQuote } from "@/services/quoteService";
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { Product } from "@/types";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Quote, Product } from "@/types";
 import { getProducts } from "@/services/productService";
 import { getSettings } from "@/services/settingService";
 import { ProductSearchBar } from "@/components/ProductSearchBar";
@@ -88,6 +106,9 @@ export default function EditQuotePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
+  const [isClearListDialogOpen, setIsClearListDialogOpen] = useState(false);
+  
+  const lastAutoDiscountRef = useRef(0);
 
   // ── Form setup ──────────────────────────────────────────────────────────
   const form = useForm<QuoteFormValues>({
@@ -101,11 +122,12 @@ export default function EditQuotePage() {
       discount_amount: 0,
       discount_type: "fixed",
       items: [],
+      extra_expenses: [],
     },
     mode: "onChange",
   });
 
-  // ── Fetch initial data ──────────────────────────────────────────────────
+  // ── Fetch initial data ──
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -118,15 +140,20 @@ export default function EditQuotePage() {
         setAvailableProducts(products);
         setSettings(settingsData);
 
-        // Mapear los items de la cotización al formato del formulario
-        const formattedItems = quoteData.items?.map(item => ({
+        const formattedItems = quoteData.items?.map((item: any) => ({
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.frozen_unit_cost || item.product?.calculated_sale_price || 0
         })) || [];
 
+        const formattedExtraExpenses = quoteData.extra_expenses?.map((exp: any) => ({
+          description: exp.description,
+          amount: Number(exp.amount),
+        })) || [];
+
         form.reset({
           client_name: quoteData.client_name,
+          client_phone: quoteData.client_phone || "",
           freight_cost: Number(quoteData.freight_cost),
           installation_total: Number(quoteData.installation_total),
           distance_km: Number(quoteData.distance_km || 0),
@@ -134,7 +161,22 @@ export default function EditQuotePage() {
           discount_amount: Number(quoteData.discount_amount || 0),
           discount_type: quoteData.discount_type || "fixed",
           items: formattedItems,
+          extra_expenses: formattedExtraExpenses,
         });
+
+        let initialAutoDiscount = 0;
+        formattedItems.forEach((item: any) => {
+          const product = products.find(p => p.id === item.product_id);
+          if (product) {
+            const suggestedPrice = Number(product.calculated_sale_price || 0);
+            const unitPrice = Number(item.unit_price || 0);
+            if (unitPrice < suggestedPrice) {
+              initialAutoDiscount += (suggestedPrice - unitPrice) * Number(item.quantity || 0);
+            }
+          }
+        });
+        lastAutoDiscountRef.current = initialAutoDiscount;
+
       } catch (error) {
         console.error("Error al cargar datos para edición:", error);
         alert("Error al cargar la cotización.");
@@ -146,7 +188,7 @@ export default function EditQuotePage() {
     if (id) fetchData();
   }, [id, form, router]);
 
-  // ── Auto-calculations ───────────────────────────────────────────────────
+  // ── Auto-calculations ──
   useEffect(() => {
     const subscription = form.watch((value, { name }) => {
       // Auto-calc freight
@@ -156,28 +198,45 @@ export default function EditQuotePage() {
         form.setValue("freight_cost", Math.round(distance * ratePerKm));
       }
 
-      // Auto-calc labor
-      if (name?.startsWith("items")) {
+      // Auto-calc labor & v1.3.1 Watcher de Descuento Automático Reactivo
+      if (name?.startsWith("items") || name === "discount_type") {
         let totalDevices = 0;
-        value.items?.forEach((item: any) => {
-          if (!item?.product_id) return;
-          const product = availableProducts.find(
-            (p) => p.id === item.product_id
-          );
+        let currentAutoDiscount = 0;
+        
+        const currentItems = form.getValues("items") || [];
+        
+        currentItems.forEach((item: any) => {
+          if (!item.product_id) return;
+          const product = availableProducts.find(p => p.id === item.product_id);
+          if (!product) return;
+
           const slug = product?.category?.slug?.toLowerCase() || "";
-          if (
-            slug.includes("camara") ||
-            slug.includes("dvr") ||
-            slug.includes("nvr")
-          ) {
+          if (slug.includes("camara") || slug.includes("dvr") || slug.includes("nvr")) {
             totalDevices += Number(item.quantity || 0);
           }
+
+          const suggestedPrice = Number(product.calculated_sale_price || 0);
+          const unitPrice = Number(item.unit_price || 0);
+          if (unitPrice < suggestedPrice) {
+            currentAutoDiscount += (suggestedPrice - unitPrice) * Number(item.quantity || 0);
+          }
         });
+
         const laborPerDevice = Number(settings.labor_cost_per_device || 0);
-        form.setValue(
-          "installation_total",
-          Math.round(totalDevices * laborPerDevice)
-        );
+        form.setValue("installation_total", Math.round(totalDevices * laborPerDevice));
+
+        const discountType = form.getValues("discount_type");
+        if (discountType === "fixed") {
+          const delta = currentAutoDiscount - lastAutoDiscountRef.current;
+          if (delta !== 0) {
+            const currentDiscountAmount = Number(form.getValues("discount_amount") || 0);
+            const newTotalDiscount = Math.max(0, currentDiscountAmount + delta);
+            form.setValue("discount_amount", Math.round(newTotalDiscount));
+            lastAutoDiscountRef.current = currentAutoDiscount;
+          }
+        } else {
+           lastAutoDiscountRef.current = 0;
+        }
       }
     });
 
@@ -188,6 +247,15 @@ export default function EditQuotePage() {
   const { fields, append, remove, update, move } = useFieldArray({
     control: form.control,
     name: "items",
+  });
+
+  const { 
+    fields: extraFields, 
+    append: appendExtra, 
+    remove: removeExtra 
+  } = useFieldArray({
+    control: form.control,
+    name: "extra_expenses",
   });
 
   // ── Live totals ─────────────────────────────────────────────────────────
@@ -201,18 +269,41 @@ export default function EditQuotePage() {
   const watchedDiscountType =
     useWatch({ control: form.control, name: "discount_type" }) || "fixed";
 
+  const watchedExtraExpenses = useWatch({ control: form.control, name: "extra_expenses" }) || [];
+
   const liveTotalMaterials = useMemo(() => {
+    return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
+      if (!item || !item.product_id) return acc;
+      return acc + Math.round((item.unit_price || 0) * (item.quantity || 0));
+    }, 0);
+  }, [watchedItems]);
+
+  const liveTotalPurchasePrice = useMemo(() => {
     return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
       if (!item) return acc;
       const product = availableProducts.find((p) => p.id === item.product_id);
-      return product
-        ? acc + Math.round(product.calculated_sale_price * (item.quantity || 0))
-        : acc;
+      if (!product) return acc;
+
+      const defaultSupplier = product.suppliers?.find((s: any) => s.pivot.is_default);
+      const cost = defaultSupplier 
+        ? Number(defaultSupplier.pivot.cost) 
+        : (Number(product.purchase_price) || 0);
+
+      return acc + Math.round(cost * (item.quantity || 0));
+    }, 0);
+  }, [watchedItems, availableProducts]);
+
+  const liveTotalSuggestedMaterials = useMemo(() => {
+    return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
+      if (!item || !item.product_id) return acc;
+      const product = availableProducts.find(p => p.id === item.product_id);
+      const suggested = product?.calculated_sale_price || item.unit_price || 0;
+      return acc + Math.round(suggested * (item.quantity || 0));
     }, 0);
   }, [watchedItems, availableProducts]);
 
   const liveBaseTotal =
-    liveTotalMaterials +
+    liveTotalSuggestedMaterials +
     Number(watchedFreight) +
     Number(watchedInstallation);
 
@@ -224,7 +315,22 @@ export default function EditQuotePage() {
     return amount;
   }, [liveBaseTotal, watchedDiscountAmount, watchedDiscountType]);
 
-  const grandTotal = Math.max(0, liveBaseTotal - liveDiscountValue);
+  const liveTotalExtraExpenses = useMemo(() => {
+    return (watchedExtraExpenses as QuoteFormValues["extra_expenses"]).reduce((acc, exp) => {
+      return acc + (Number(exp.amount) || 0);
+    }, 0);
+  }, [watchedExtraExpenses]);
+
+  const liveEstimatedGrossProfit = useMemo(() => {
+    const profitEquipos = liveTotalMaterials - liveTotalPurchasePrice;
+    return profitEquipos + Number(watchedInstallation) + Number(watchedFreight);
+  }, [liveTotalMaterials, liveTotalPurchasePrice, watchedInstallation, watchedFreight]);
+
+  const liveNetRealProfit = useMemo(() => {
+    return liveEstimatedGrossProfit - (liveDiscountValue || 0) - liveTotalExtraExpenses;
+  }, [liveEstimatedGrossProfit, liveDiscountValue, liveTotalExtraExpenses]);
+
+  const grandTotal = Math.max(0, liveBaseTotal - (liveDiscountValue || 0));
 
   // ── DnD sensors ─────────────────────────────────────────────────────────
   const sensors = useSensors(
@@ -298,7 +404,6 @@ export default function EditQuotePage() {
     );
   }
 
-  // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="max-w-7xl mx-auto space-y-8 animate-in fade-in duration-700">
       <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-2">
@@ -334,18 +439,32 @@ export default function EditQuotePage() {
               <div className="w-1 h-6 bg-blue-600 rounded-full" />
               <h2 className="text-lg font-semibold text-slate-800">Información General</h2>
             </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700 ml-1">Cliente</label>
-              <input
-                {...form.register("client_name")}
-                className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
-                placeholder="Nombre de la empresa o persona"
-              />
-              {form.formState.errors.client_name && (
-                <span className="text-red-500 text-xs mt-1 ml-1">
-                  {form.formState.errors.client_name.message}
-                </span>
-              )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 ml-1">Cliente</label>
+                <input
+                  {...form.register("client_name")}
+                  
+                  suppressHydrationWarning={true}
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Nombre de la empresa o persona"
+                />
+                {form.formState.errors.client_name && (
+                  <span className="text-red-500 text-xs mt-1 ml-1">
+                    {form.formState.errors.client_name.message}
+                  </span>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700 ml-1">Teléfono (WhatsApp)</label>
+                <input
+                  {...form.register("client_phone")}
+                  
+                  suppressHydrationWarning={true}
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  placeholder="Ej. +502 1234 5678"
+                />
+              </div>
             </div>
           </section>
 
@@ -361,7 +480,8 @@ export default function EditQuotePage() {
                 <input
                   type="number"
                   {...form.register("installation_days")}
-                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="space-y-1.5">
@@ -369,7 +489,8 @@ export default function EditQuotePage() {
                 <input
                   type="number"
                   {...form.register("distance_km")}
-                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="space-y-1.5">
@@ -377,7 +498,8 @@ export default function EditQuotePage() {
                 <input
                   type="number"
                   {...form.register("freight_cost")}
-                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
               <div className="space-y-1.5">
@@ -385,7 +507,8 @@ export default function EditQuotePage() {
                 <input
                   type="number"
                   {...form.register("installation_total")}
-                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
               </div>
             </div>
@@ -402,7 +525,8 @@ export default function EditQuotePage() {
                 <label className="text-sm font-medium text-slate-700 ml-1">Tipo de Descuento</label>
                 <select
                   {...form.register("discount_type")}
-                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                  
+                  className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 disabled:opacity-50"
                 >
                   <option value="fixed">Monto Fijo (Q)</option>
                   <option value="percentage">Porcentaje (%)</option>
@@ -419,7 +543,8 @@ export default function EditQuotePage() {
                   <input
                     type="number"
                     {...form.register("discount_amount")}
-                    className="w-full rounded-xl border border-slate-200 p-3 pl-8 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500"
+                    
+                    className="w-full rounded-xl border border-slate-200 p-3 pl-8 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 disabled:opacity-50"
                     placeholder="0.00"
                   />
                 </div>
@@ -438,6 +563,41 @@ export default function EditQuotePage() {
               <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
                 {fields.length} ítem{fields.length !== 1 ? "s" : ""}
               </span>
+              <AlertDialog open={isClearListDialogOpen} onOpenChange={setIsClearListDialogOpen}>
+                <AlertDialogTrigger render={
+                  <button
+                    type="button"
+                    disabled={!!quoteResult || fields.length === 0}
+                    className="ml-4 text-[10px] font-bold text-red-600 bg-white hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Limpiar Lista
+                  </button>
+                } />
+                <AlertDialogContent>
+                  <AlertDialogHeader className="flex flex-col items-center justify-center">
+                    <div className="rounded-full bg-red-100 p-3 mb-2">
+                      <AlertTriangle className="h-6 w-6 text-red-600" />
+                    </div>
+                    <AlertDialogTitle className="text-center">¿Confirmar Limpieza?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-center">
+                      Esta acción eliminará todos los equipos y materiales de la lista actual.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction 
+                      variant="destructive"
+                      onClick={() => {
+                        form.setValue("items", []);
+                        setIsClearListDialogOpen(false);
+                      }}
+                    >
+                      Sí, vaciar lista
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
 
             {/* ── GLOBAL SEARCH BAR ── */}
@@ -448,6 +608,8 @@ export default function EditQuotePage() {
               <ProductSearchBar
                 products={availableProducts}
                 onSelect={handleQuickAdd}
+                
+                
               />
             </div>
 
@@ -501,6 +663,7 @@ export default function EditQuotePage() {
                             <SortableTableRow
                               key={field.id}
                               id={field.id}
+                              isDragDisabled={!!quoteResult}
                             >
                               {(dragHandleProps) => (
                                 <>
@@ -509,7 +672,7 @@ export default function EditQuotePage() {
                                     <button
                                       type="button"
                                       {...dragHandleProps}
-                                      className="p-1 rounded text-slate-200 hover:text-slate-400 hover:bg-slate-100 cursor-grab active:cursor-grabbing transition-colors opacity-0 group-hover:opacity-100"
+                                      className="p-1 rounded text-slate-200 hover:text-slate-400 hover:bg-slate-100 cursor-grab active:cursor-grabbing transition-colors disabled:hidden opacity-0 group-hover:opacity-100"
                                       title="Arrastrar para reordenar"
                                     >
                                       <GripVertical className="h-3.5 w-3.5" />
@@ -524,13 +687,68 @@ export default function EditQuotePage() {
                                   {/* Producto */}
                                   <td className="px-3 py-1.5">
                                     {selectedProduct ? (
-                                      <div className="flex items-center gap-2">
-                                        <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
-                                          {selectedProduct.sku}
-                                        </span>
-                                        <span className="text-slate-800 font-medium leading-tight">
-                                          {selectedProduct.name}
-                                        </span>
+                                      <div className="flex flex-col">
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <span className="flex items-center gap-2 cursor-help group/info">
+                                              <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
+                                                {selectedProduct.sku}
+                                              </span>
+                                              <span className="text-slate-800 font-medium leading-tight border-b border-dotted border-slate-300 group-hover/info:border-slate-500 transition-colors">
+                                                {selectedProduct.name}
+                                              </span>
+                                              <Info className="h-3 w-3 text-slate-400 group-hover/info:text-blue-500 transition-colors" />
+                                            </span>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="right" className="max-w-sm bg-slate-900 text-slate-50 p-0 shadow-2xl border-none rounded-xl overflow-hidden">
+                                            <div className="flex gap-4">
+                                              {selectedProduct.image_url && (
+                                                <div className="w-24 h-24 bg-white shrink-0">
+                                                  <img 
+                                                    src={selectedProduct.image_url} 
+                                                    alt={selectedProduct.name} 
+                                                    className="w-full h-full object-contain p-1"
+                                                  />
+                                                </div>
+                                              )}
+                                              <div className="p-3 flex-1 min-w-[150px]">
+                                                <div className="flex items-center gap-1.5 border-b border-slate-700 pb-1 mb-1">
+                                                  <Info className="h-3 w-3 text-blue-400" />
+                                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Especificaciones</p>
+                                                </div>
+                                                <p className="text-[11px] leading-relaxed text-slate-200 line-clamp-6">
+                                                  {selectedProduct.description 
+                                                    ? selectedProduct.description.replace(/<[^>]*>/g, "") 
+                                                    : "Sin descripción técnica disponible."}
+                                                </p>
+                                              </div>
+                                            </div>
+                                          </TooltipContent>
+                                        </Tooltip>
+                                        {/* Feedback de Utilidad */}
+                                        <div className="mt-1 flex items-center gap-2">
+                                          {(() => {
+                                            const defaultSupplier = selectedProduct.suppliers?.find(s => s.pivot.is_default);
+                                            const cost = defaultSupplier 
+                                              ? Number(defaultSupplier.pivot.cost) 
+                                              : (Number(selectedProduct.purchase_price) || 0);
+                                            
+                                            const price = currentItem?.unit_price || 0;
+                                            const utility = price - cost;
+                                            const utilityPercent = price > 0 ? (utility / price) * 100 : -100;
+                                            const isLow = utilityPercent < 5;
+                                            
+                                            return (
+                                              <span className={cn(
+                                                "text-[10px] font-medium transition-colors",
+                                                isLow ? "text-red-500 font-bold" : "text-slate-400"
+                                              )}>
+                                                Costo: Q{cost.toFixed(2)} | Utilidad: Q{utility.toFixed(2)} ({utilityPercent.toFixed(1)}%)
+                                                {isLow && " ⚠️ Margen Bajo"}
+                                              </span>
+                                            );
+                                          })()}
+                                        </div>
                                       </div>
                                     ) : (
                                       <span className="text-slate-400 italic text-xs">
@@ -547,21 +765,29 @@ export default function EditQuotePage() {
                                       {...form.register(`items.${index}.quantity`, {
                                         valueAsNumber: true,
                                       })}
-                                      className="w-16 mx-auto block rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                                      className="w-16 mx-auto block rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all disabled:opacity-50"
                                     />
                                   </td>
 
                                   {/* P. Unit */}
                                   <td className="px-3 py-1.5 text-right">
-                                    <span className="text-slate-500 font-medium tabular-nums">
-                                      Q {fmt(unitPrice)}
-                                    </span>
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <span className="text-slate-400 text-xs font-semibold">Q</span>
+                                      <input
+                                        type="number"
+                                        step="0.01"
+                                        {...form.register(`items.${index}.unit_price`, {
+                                          valueAsNumber: true,
+                                        })}
+                                        className="w-24 rounded-lg border border-slate-200 bg-white px-2 py-1 text-right text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all disabled:opacity-50"
+                                      />
+                                    </div>
                                   </td>
 
                                   {/* Subtotal */}
                                   <td className="px-4 py-1.5 text-right">
                                     <span className="text-emerald-700 font-bold tabular-nums">
-                                      Q {fmt(subtotal)}
+                                      Q {fmt(Math.round((currentItem?.unit_price || 0) * (currentItem?.quantity || 0)))}
                                     </span>
                                   </td>
 
@@ -571,7 +797,7 @@ export default function EditQuotePage() {
                                       type="button"
                                       onClick={() => remove(index)}
                                       title="Eliminar fila"
-                                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all disabled:hidden"
                                     >
                                       <Trash2 className="h-3.5 w-3.5" />
                                     </button>
@@ -618,6 +844,76 @@ export default function EditQuotePage() {
               </div>
             )}
           </section>
+
+          {/* ══ Gastos Operativos del Proyecto (Variables) ══ */}
+          <section className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="flex items-center gap-2 px-6 pt-5 pb-4 border-b border-slate-100">
+              <div className="w-1 h-6 bg-orange-500 rounded-full" />
+              <h2 className="text-lg font-semibold text-slate-800 flex-1">
+                Gastos Operativos del Proyecto (Variables)
+              </h2>
+              <button
+                type="button"
+                onClick={() => appendExtra({ description: "", amount: 0 })}
+                
+                className="text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 px-3 py-1.5 rounded-full transition-colors flex items-center gap-1 disabled:opacity-50"
+              >
+                + Agregar Gasto
+              </button>
+            </div>
+
+            <div className="p-6">
+              {extraFields.length > 0 ? (
+                <div className="space-y-4">
+                  {extraFields.map((field, index) => (
+                    <div key={field.id} className="flex gap-4 items-start animate-in fade-in slide-in-from-top-1 duration-200">
+                      <div className="flex-1 space-y-1">
+                        <input
+                          {...form.register(`extra_expenses.${index}.description`)}
+                          
+                          placeholder="Ej: Gasolina extra, Almuerzos, etc."
+                          className="w-full rounded-xl border border-slate-200 p-3 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm"
+                        />
+                      </div>
+                      <div className="w-40 space-y-1">
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">Q</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            {...form.register(`extra_expenses.${index}.amount`)}
+                            
+                            className="w-full rounded-xl border border-slate-200 p-3 pl-8 bg-slate-50 focus:bg-white transition-all outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 text-sm font-semibold"
+                            placeholder="0.00"
+                          />
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeExtra(index)}
+                        
+                        className="p-3 text-slate-300 hover:text-red-500 transition-colors disabled:opacity-0"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-6 border-2 border-dashed border-slate-100 rounded-2xl">
+                  <p className="text-slate-400 text-sm">No hay gastos extra registrados.</p>
+                  <button
+                    type="button"
+                    onClick={() => appendExtra({ description: "", amount: 0 })}
+                    
+                    className="mt-2 text-xs font-bold text-orange-600 hover:underline"
+                  >
+                    Haga clic aquí para agregar el primero
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
 
         {/* ── RIGHT COLUMN: Sticky Sidebar ── */}
@@ -645,9 +941,9 @@ export default function EditQuotePage() {
               <CardContent className="p-6 space-y-4">
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500 font-medium whitespace-nowrap">Equipos y Materiales</span>
+                    <span className="text-slate-500 font-medium whitespace-nowrap">Total Bruto Equipos</span>
                     <span className="text-slate-900 font-semibold tabular-nums">
-                      Q {fmt(liveTotalMaterials)}
+                      Q {fmt(liveTotalSuggestedMaterials)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
@@ -672,6 +968,39 @@ export default function EditQuotePage() {
                   )}
                 </div>
 
+                <div className="bg-emerald-50 border border-emerald-100 p-3 rounded-xl">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Utilidad Bruta Estimada</span>
+                    <span className="text-emerald-700 font-bold text-xs">+ Q {fmt(liveEstimatedGrossProfit)}</span>
+                  </div>
+                  <div className="w-full bg-emerald-200 h-1.5 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-emerald-600 h-full rounded-full transition-all duration-500" 
+                      style={{ width: `${Math.min(100, (liveEstimatedGrossProfit / (grandTotal || 1)) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {liveTotalExtraExpenses > 0 && (
+                  <div className="flex justify-between items-center px-2 text-orange-600">
+                    <span className="text-xs font-medium">(-) Gastos Extra Var.</span>
+                    <span className="text-xs font-bold tabular-nums">Q {fmt(liveTotalExtraExpenses)}</span>
+                  </div>
+                )}
+
+                <div className="bg-blue-900 text-white p-4 rounded-2xl shadow-inner">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest opacity-70">Utilidad Neta Real</span>
+                    <span className="text-blue-300 font-bold text-xs">Final</span>
+                  </div>
+                  <div className="text-2xl font-black tabular-nums">
+                    Q {fmt(liveNetRealProfit)}
+                  </div>
+                  <p className="text-[9px] opacity-60 mt-1 italic leading-tight">
+                    * Descuentos y gastos extra aplicados.
+                  </p>
+                </div>
+
                 <Separator className="bg-slate-100" />
 
                 <div className="pt-2">
@@ -686,7 +1015,7 @@ export default function EditQuotePage() {
                   </div>
                 </div>
 
-                <div className="pt-4 flex flex-col gap-3">
+                <div className="pt-4">
                   <button 
                     type="submit" 
                     disabled={isSubmitting || fields.length === 0}
@@ -707,10 +1036,13 @@ export default function EditQuotePage() {
                   <button 
                     type="button"
                     onClick={() => router.back()}
-                    className="w-full bg-slate-100 text-slate-600 px-10 py-4 rounded-xl font-bold hover:bg-slate-200 transition-all text-center"
+                    className="w-full bg-slate-100 text-slate-600 px-10 py-4 rounded-xl font-bold hover:bg-slate-200 transition-all text-center mt-3"
                   >
                     Cancelar
                   </button>
+                  <p className="text-center text-[10px] text-slate-400 mt-3 px-4">
+                    Los cambios se guardarán en la base de datos.
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -723,6 +1055,8 @@ export default function EditQuotePage() {
             </div>
         </div>
       </form>
+
+      {/* Result viewer removed - now handled in sidebar */}
     </div>
   );
 }
