@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Cotización #{{ $quote->id }} | {{ $settings['company_name'] ?? 'CotizaCCTV' }}</title>
     <style>
+        * {
+            font-family: 'DejaVu Sans', sans-serif;
+        }
         body {
-            font-family: 'Helvetica', 'Arial', sans-serif;
             font-size: 12px;
             color: #333;
             line-height: 1.5;
