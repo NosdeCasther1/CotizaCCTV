@@ -391,8 +391,8 @@ export default function DashboardPage() {
             </div>
             
             <div className="p-6 flex-1 flex flex-col justify-center">
-              <div className="w-full h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="w-full h-[300px] min-h-[300px]">
+                <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={mockChartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis 

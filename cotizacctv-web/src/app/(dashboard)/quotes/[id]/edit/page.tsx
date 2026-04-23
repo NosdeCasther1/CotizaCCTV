@@ -107,6 +107,7 @@ export default function EditQuotePage() {
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [isClearListDialogOpen, setIsClearListDialogOpen] = useState(false);
+  const [quote, setQuote] = useState<Quote | null>(null);
   
   const lastAutoDiscountRef = useRef(0);
 
@@ -139,6 +140,7 @@ export default function EditQuotePage() {
         ]);
         setAvailableProducts(products);
         setSettings(settingsData);
+        setQuote(quoteData);
 
         const formattedItems = quoteData.items?.map((item: any) => ({
           product_id: item.product_id,
@@ -567,7 +569,7 @@ export default function EditQuotePage() {
                 <AlertDialogTrigger render={
                   <button
                     type="button"
-                    disabled={!!quoteResult || fields.length === 0}
+                    disabled={quote?.status === 'completed' || fields.length === 0}
                     className="ml-4 text-[10px] font-bold text-red-600 bg-white hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-full transition-all flex items-center gap-1.5 shadow-sm active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
                   >
                     <Trash2 className="h-3 w-3" />
@@ -663,7 +665,7 @@ export default function EditQuotePage() {
                             <SortableTableRow
                               key={field.id}
                               id={field.id}
-                              isDragDisabled={!!quoteResult}
+                              isDragDisabled={quote?.status === 'completed'}
                             >
                               {(dragHandleProps) => (
                                 <>
