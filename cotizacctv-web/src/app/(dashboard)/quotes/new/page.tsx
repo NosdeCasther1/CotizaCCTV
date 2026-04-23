@@ -535,8 +535,8 @@ export default function NewQuotePage() {
                                     {selectedProduct ? (
                                       <div className="flex flex-col">
                                         <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <div className="flex items-center gap-2 cursor-help group/info">
+                                          <TooltipTrigger>
+                                            <span className="flex items-center gap-2 cursor-help group/info">
                                               <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded shrink-0">
                                                 {selectedProduct.sku}
                                               </span>
@@ -544,7 +544,7 @@ export default function NewQuotePage() {
                                                 {selectedProduct.name}
                                               </span>
                                               <Info className="h-3 w-3 text-slate-400 group-hover/info:text-blue-500 transition-colors" />
-                                            </div>
+                                            </span>
                                           </TooltipTrigger>
                                           <TooltipContent side="right" className="max-w-xs bg-slate-900 text-slate-50 p-3 shadow-2xl border-none rounded-xl">
                                             <div className="space-y-1.5">
