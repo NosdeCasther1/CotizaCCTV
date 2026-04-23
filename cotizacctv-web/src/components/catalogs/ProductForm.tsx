@@ -141,9 +141,6 @@ const productSchema = z.object({
   margin_percentage: z.string()
     .refine((val) => val === "" || !isNaN(Number(val)), { message: "Debe ser un número" })
     .optional(),
-  purchase_price: z.string()
-    .refine((val) => val === "" || !isNaN(Number(val)), { message: "Debe ser un número" })
-    .optional(),
   tax_rate: z.string()
     .refine((val) => val === "" || !isNaN(Number(val)), { message: "Debe ser un número" })
     .optional(),
@@ -163,7 +160,6 @@ type ProductFormValues = {
   brand_id?: string | null;
   utility_type: 'percentage' | 'fixed_amount';
   margin_percentage: string;
-  purchase_price: string;
   tax_rate: string;
   suppliers: {
     supplier_id: string;
@@ -203,7 +199,6 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
       brand_id: product?.brand_id?.toString() || "",
       utility_type: product?.utility_type || "percentage",
       margin_percentage: product?.margin_percentage?.toString() || "",
-      purchase_price: product?.purchase_price?.toString() || "",
       tax_rate: product?.tax_rate?.toString() || "0",
       suppliers: product?.suppliers && product.suppliers.length > 0 
         ? product.suppliers.map(s => ({
@@ -277,7 +272,6 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         ...values,
         brand_id: values.brand_id === "" ? null : Number(values.brand_id),
         margin_percentage: values.margin_percentage === "" ? null : Number(values.margin_percentage),
-        purchase_price: values.purchase_price === "" ? null : Number(values.purchase_price),
         tax_rate: values.tax_rate === "" ? 0 : Number(values.tax_rate),
         suppliers: values.suppliers.map(s => ({
           supplier_id: Number(s.supplier_id),
@@ -392,25 +386,6 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="purchase_price">Precio de Compra (GTQ)</Label>
-          <div className="relative">
-            <DollarSign className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="purchase_price"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              className="pl-8"
-              {...register("purchase_price")}
-              disabled={isSubmitting}
-            />
-          </div>
-          {errors.purchase_price && (
-            <p className="text-sm text-destructive">{errors.purchase_price.message as React.ReactNode}</p>
-          )}
-        </div>
-
-        <div className="space-y-2">
           <Label htmlFor="tax_rate">Impuesto / IVA (%)</Label>
           <div className="relative">
             <Percent className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -430,22 +405,31 @@ export function ProductForm({ product, onSuccess, onCancel }: ProductFormProps) 
         </div>
       </div>
 
-      {watch("purchase_price") && (
-        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between">
-          <div>
-            <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Sugerencia de Negocio</p>
-            <p className="text-sm text-blue-900 font-medium">Precio de Venta Sugerido (30% Margen)</p>
-          </div>
-          <div className="text-right">
-            <p className="text-lg font-black text-blue-600">
-              Q {watch("utility_type") === 'percentage' 
-                ? (Number(watch("purchase_price")) / 0.7).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-                : (Number(watch("purchase_price")) + Number(watch("margin_percentage") || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-              }
-            </p>
-          </div>
-        </div>
-      )}
+      {(() => {
+        const suppliersWatch = watch("suppliers");
+        const favoriteSupplier = suppliersWatch?.find((s: any) => s.is_default);
+        const baseCost = favoriteSupplier ? Number(favoriteSupplier.cost) : 0;
+        
+        if (baseCost > 0) {
+          return (
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+              <div>
+                <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Sugerencia de Negocio</p>
+                <p className="text-sm text-blue-900 font-medium">Precio de Venta Sugerido (Basado en favorito)</p>
+              </div>
+              <div className="text-right">
+                <p className="text-lg font-black text-blue-600">
+                  Q {watch("utility_type") === 'percentage' 
+                    ? (baseCost / (1 - (Number(watch("margin_percentage") || 0) / 100))).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                    : (baseCost + Number(watch("margin_percentage") || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                  }
+                </p>
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="space-y-2">
         <Label htmlFor="name">Nombre del Producto</Label>

@@ -198,9 +198,14 @@ export default function NewQuotePage() {
     return (watchedItems as QuoteFormValues["items"]).reduce((acc, item) => {
       if (!item) return acc;
       const product = availableProducts.find((p) => p.id === item.product_id);
-      return product
-        ? acc + Math.round((product.purchase_price || 0) * (item.quantity || 0))
-        : acc;
+      if (!product) return acc;
+
+      const defaultSupplier = product.suppliers?.find((s: any) => s.pivot.is_default);
+      const cost = defaultSupplier 
+        ? Number(defaultSupplier.pivot.cost) 
+        : (Number(product.purchase_price) || 0);
+
+      return acc + Math.round(cost * (item.quantity || 0));
     }, 0);
   }, [watchedItems, availableProducts]);
 
@@ -481,7 +486,11 @@ export default function NewQuotePage() {
                                         {/* Feedback de Utilidad */}
                                         <div className="mt-1 flex items-center gap-2">
                                           {(() => {
-                                            const cost = Number(selectedProduct.purchase_price) || 0;
+                                            const defaultSupplier = selectedProduct.suppliers?.find(s => s.pivot.is_default);
+                                            const cost = defaultSupplier 
+                                              ? Number(defaultSupplier.pivot.cost) 
+                                              : (Number(selectedProduct.purchase_price) || 0);
+                                            
                                             const price = currentItem?.unit_price || 0;
                                             const utility = price - cost;
                                             const utilityPercent = price > 0 ? (utility / price) * 100 : -100;
